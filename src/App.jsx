@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
-import { Shield, Activity, Zap, AlertTriangle, Eye, Menu, X, Package, Play } from 'lucide-react';
+import { Shield, Activity, Zap, AlertTriangle, Eye, Menu, X, Package, Play, Sun, Moon } from 'lucide-react';
+import { useTheme } from './context/ThemeContext';
 import Dashboard from './pages/Dashboard';
 import CommandCenter from './pages/CommandCenter';
 import Modules from './pages/Modules';
@@ -13,6 +14,7 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const { theme, toggleTheme } = useTheme();
 
   const navItems = [
     { path: '/', icon: Shield, label: 'Dashboard', color: '#22d3ee' },
@@ -46,6 +48,12 @@ function App() {
             </button>
           ))}
         </nav>
+        <div className="sidebar-footer">
+          <button onClick={toggleTheme} className="theme-toggle">
+            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+            <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+          </button>
+        </div>
       </aside>
 
       {sidebarOpen && <div className="overlay" onClick={() => setSidebarOpen(false)} />}
