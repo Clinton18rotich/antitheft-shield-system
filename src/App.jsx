@@ -6,6 +6,7 @@ import CommandCenter from './pages/CommandCenter';
 import Modules from './pages/Modules';
 import Android15 from './pages/Android15';
 import TheftSimulator from './pages/TheftSimulator';
+import EvidenceFlow from './pages/EvidenceFlow';
 import './App.css';
 
 function App() {
@@ -18,7 +19,8 @@ function App() {
     { path: '/simulator', icon: Play, label: 'Simulator', color: '#f87171' },
     { path: '/modules', icon: Package, label: 'Modules', color: '#a78bfa' },
     { path: '/command', icon: Zap, label: 'Commands', color: '#fb923c' },
-    { path: '/android15', icon: AlertTriangle, label: 'Android 15', color: '#f87171' },
+    { path: '/flow', icon: Eye, label: 'Evidence Flow', color: '#34d399' },
+    { path: '/android15', icon: AlertTriangle, label: 'Android 15', color: '#fbbf24' },
   ];
 
   return (
@@ -54,6 +56,7 @@ function App() {
           <Route path="/simulator" element={<TheftSimulator />} />
           <Route path="/modules" element={<Modules />} />
           <Route path="/command" element={<CommandCenter />} />
+          <Route path="/flow" element={<EvidenceFlow />} />
           <Route path="/android15" element={<Android15 />} />
         </Routes>
       </main>
