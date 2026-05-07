@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
-import { Shield, Activity, Zap, AlertTriangle, Eye, Menu, X } from 'lucide-react';
+import { Shield, Activity, Zap, AlertTriangle, Eye, Menu, X, Package } from 'lucide-react';
 import Dashboard from './pages/Dashboard';
 import CommandCenter from './pages/CommandCenter';
+import Modules from './pages/Modules';
 import Android15 from './pages/Android15';
 import './App.css';
 
@@ -13,6 +14,7 @@ function App() {
 
   const navItems = [
     { path: '/', icon: Shield, label: 'Dashboard', color: '#22d3ee' },
+    { path: '/modules', icon: Package, label: 'Modules', color: '#a78bfa' },
     { path: '/command', icon: Zap, label: 'Commands', color: '#fb923c' },
     { path: '/android15', icon: AlertTriangle, label: 'Android 15', color: '#f87171' },
   ];
@@ -47,6 +49,7 @@ function App() {
       <main className="main-area">
         <Routes>
           <Route path="/" element={<Dashboard />} />
+          <Route path="/modules" element={<Modules />} />
           <Route path="/command" element={<CommandCenter />} />
           <Route path="/android15" element={<Android15 />} />
         </Routes>
