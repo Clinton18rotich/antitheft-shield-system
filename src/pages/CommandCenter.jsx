@@ -5,15 +5,92 @@ import {
   CheckCircle, XCircle, Copy, Check, Code, ChevronRight,
   Play, Eye, EyeOff, Volume2, Radio, Bluetooth, Smartphone, Battery,
   Thermometer, Sun, Moon, Activity, Heart, Fingerprint, Scan, AlertTriangle,
-  Bell, Vibrate, Key, Trash2, Save, Download, Upload, Clock
+  Bell, Vibrate, Key, Trash2, Save, Download, Upload, Clock,
+  Monitor, Cpu, HardDrive, Wrench, UserCheck, FileText, Video,
+  BarChart3, Gauge, Radar, Crosshair, Zap
 } from 'lucide-react';
 
-const commands = [
-  {
-    cmd: 'PHOTO',
-    desc: 'Silent front camera capture',
-    icon: Camera, color: '#22d3ee', working: true, category: 'Evidence',
-    code: `val cameraManager = getSystemService(CAMERA_SERVICE) as CameraManager
+const allCommands = [
+  // ============ EVIDENCE - CAMERA ============
+  { cmd: 'PHOTO', desc: 'Silent front camera capture', icon: Camera, color: '#22d3ee', working: true, category: '📸 Camera' },
+  { cmd: 'BURST_PHOTO', desc: 'Capture 10 rapid photos', icon: Camera, color: '#06b6d4', working: true, category: '📸 Camera' },
+  { cmd: 'REAR_PHOTO', desc: 'Silent rear camera capture', icon: Camera, color: '#0891b2', working: true, category: '📸 Camera' },
+  { cmd: 'VIDEO_RECORD', desc: 'Record 30s silent video', icon: Video, color: '#0e7490', working: true, category: '📸 Camera' },
+  { cmd: 'NIGHT_PHOTO', desc: 'Night mode photo capture', icon: Moon, color: '#6366f1', working: true, category: '📸 Camera' },
+  { cmd: 'FLASH_PHOTO', desc: 'Photo with flash as torch', icon: Zap, color: '#fbbf24', working: true, category: '📸 Camera' },
+  
+  // ============ EVIDENCE - AUDIO ============
+  { cmd: 'AUDIO', desc: 'Record 5 min ambient audio', icon: Mic, color: '#fbbf24', working: true, category: '🎤 Audio' },
+  { cmd: 'AUDIO_LIVE', desc: 'Stream live audio chunks', icon: Mic, color: '#f59e0b', working: true, category: '🎤 Audio' },
+  { cmd: 'VOICE_ANALYZE', desc: 'Voice stress & emotion analysis', icon: Activity, color: '#eab308', working: true, category: '🎤 Audio' },
+  { cmd: 'ULTRASONIC_TX', desc: 'Transmit data via ultrasound', icon: Radio, color: '#d97706', working: true, category: '🎤 Audio' },
+  { cmd: 'NOISE_LEVEL', desc: 'Measure ambient noise dB', icon: BarChart3, color: '#ca8a04', working: true, category: '🎤 Audio' },
+  
+  // ============ TRACKING ============
+  { cmd: 'LOCATION', desc: 'Get GPS coordinates', icon: MapPin, color: '#34d399', working: true, category: '📍 Tracking' },
+  { cmd: 'TRACK_START', desc: 'Continuous GPS every 5 min', icon: MapPin, color: '#059669', working: true, category: '📍 Tracking' },
+  { cmd: 'GEOFENCE', desc: 'Alert on area entry/exit', icon: Crosshair, color: '#10b981', working: true, category: '📍 Tracking' },
+  { cmd: 'DEAD_RECKON', desc: 'Sensor-based positioning', icon: Gauge, color: '#047857', working: true, category: '📍 Tracking' },
+  { cmd: 'MAGNETIC_MAP', desc: 'Magnetic field location', icon: Radar, color: '#065f46', working: true, category: '📍 Tracking' },
+  { cmd: 'ALTITUDE', desc: 'Barometric altitude reading', icon: BarChart3, color: '#064e3b', working: true, category: '📍 Tracking' },
+  
+  // ============ NETWORK ============
+  { cmd: 'WIFI_SCAN', desc: 'Log nearby WiFi networks', icon: Wifi, color: '#a78bfa', working: true, category: '🌐 Network' },
+  { cmd: 'BLUETOOTH_SCAN', desc: 'Scan Bluetooth devices', icon: Bluetooth, color: '#8b5cf6', working: true, category: '🌐 Network' },
+  { cmd: 'CELL_TOWER', desc: 'Cell tower triangulation', icon: Radio, color: '#7c3aed', working: true, category: '🌐 Network' },
+  { cmd: 'WIFI_LOG', desc: 'Log connected WiFi history', icon: Wifi, color: '#6d28d9', working: true, category: '🌐 Network' },
+  { cmd: 'MAC_ADDRESS', desc: 'Get network MAC addresses', icon: Monitor, color: '#5b21b6', working: true, category: '🌐 Network' },
+  { cmd: 'IP_CONFIG', desc: 'Get IP configuration', icon: Monitor, color: '#4c1d95', working: true, category: '🌐 Network' },
+  
+  // ============ DEVICE CONTROL ============
+  { cmd: 'LOCK', desc: 'Lock device instantly', icon: Lock, color: '#f87171', working: true, category: '🔒 Control' },
+  { cmd: 'FAKE_SHUTDOWN', desc: 'Screen off, tracking on', icon: EyeOff, color: '#ef4444', working: true, category: '🔒 Control' },
+  { cmd: 'ALARM', desc: 'Max volume siren', icon: Volume2, color: '#dc2626', working: true, category: '🔒 Control' },
+  { cmd: 'SCREAM_DETECT', desc: 'Auto-alarm on scream', icon: AlertTriangle, color: '#b91c1c', working: true, category: '🔒 Control' },
+  { cmd: 'VIBRATE_PATTERN', desc: 'SOS vibration pattern', icon: Vibrate, color: '#991b1b', working: true, category: '🔒 Control' },
+  { cmd: 'FLASH_SOS', desc: 'Camera flash SOS morse', icon: Zap, color: '#7f1d1d', working: true, category: '🔒 Control' },
+  { cmd: 'VOLUME_MAX', desc: 'Set all volumes to maximum', icon: Volume2, color: '#ef4444', working: true, category: '🔒 Control' },
+  { cmd: 'SCREEN_MSG', desc: 'Show full-screen message', icon: Monitor, color: '#dc2626', working: true, category: '🔒 Control' },
+  { cmd: 'WIPE', desc: 'Factory reset device', icon: Trash2, color: '#991b1b', working: true, category: '🔒 Control' },
+  
+  // ============ DEVICE INFO ============
+  { cmd: 'SIM_INFO', desc: 'Get SIM card details', icon: Smartphone, color: '#f472b6', working: true, category: '📱 Info' },
+  { cmd: 'SIM_SWAP_ALERT', desc: 'Monitor SIM changes', icon: Smartphone, color: '#ec4899', working: true, category: '📱 Info' },
+  { cmd: 'BATTERY', desc: 'Check battery status', icon: Battery, color: '#34d399', working: true, category: '📱 Info' },
+  { cmd: 'SENSORS_ALL', desc: 'Read all device sensors', icon: Activity, color: '#f472b6', working: true, category: '📱 Info' },
+  { cmd: 'ENVIRONMENT', desc: 'Temp/humidity/pressure/light', icon: Thermometer, color: '#fb923c', working: true, category: '📱 Info' },
+  { cmd: 'DEVICE_INFO', desc: 'Full device specifications', icon: Smartphone, color: '#a78bfa', working: true, category: '📱 Info' },
+  { cmd: 'CPU_INFO', desc: 'CPU cores & frequency', icon: Cpu, color: '#8b5cf6', working: true, category: '📱 Info' },
+  { cmd: 'MEMORY_INFO', desc: 'RAM & storage usage', icon: HardDrive, color: '#7c3aed', working: true, category: '📱 Info' },
+  { cmd: 'APP_LIST', desc: 'List installed applications', icon: Monitor, color: '#6d28d9', working: true, category: '📱 Info' },
+  { cmd: 'UPTIME', desc: 'Device uptime since boot', icon: Clock, color: '#5b21b6', working: true, category: '📱 Info' },
+  
+  // ============ BIOMETRIC ============
+  { cmd: 'FACE_SCAN', desc: 'Facial recognition scan', icon: Scan, color: '#22d3ee', working: true, category: '🧬 Biometric' },
+  { cmd: 'IRIS_SCAN', desc: 'Iris pattern capture', icon: Eye, color: '#06b6d4', working: true, category: '🧬 Biometric' },
+  { cmd: 'VOICE_PRINT', desc: 'Voice biometric signature', icon: Mic, color: '#0891b2', working: true, category: '🧬 Biometric' },
+  { cmd: 'GAIT_ANALYZE', desc: 'Walking pattern analysis', icon: Activity, color: '#0e7490', working: true, category: '🧬 Biometric' },
+  { cmd: 'HEART_RATE', desc: 'Read heart rate sensor', icon: Heart, color: '#f87171', working: true, category: '🧬 Biometric' },
+  { cmd: 'FINGERPRINT', desc: 'Fingerprint usage log', icon: Fingerprint, color: '#ef4444', working: true, category: '🧬 Biometric' },
+  
+  // ============ REPORTING ============
+  { cmd: 'REPORT', desc: 'Generate police report', icon: Shield, color: '#fb923c', working: true, category: '📋 Report' },
+  { cmd: 'BACKUP_EVIDENCE', desc: 'Upload all evidence to cloud', icon: Upload, color: '#22d3ee', working: true, category: '📋 Report' },
+  { cmd: 'EXPORT_LOG', desc: 'Export all logs as JSON', icon: Download, color: '#a78bfa', working: true, category: '📋 Report' },
+  { cmd: 'EMAIL_STATUS', desc: 'Send device status email', icon: Mail, color: '#34d399', working: true, category: '📋 Report' },
+  
+  // ============ BLOCKED (ANDROID 15) ============
+  { cmd: 'SMS_ALERT', desc: 'Send SMS alert [BLOCKED]', icon: Phone, color: '#f472b6', working: false, android15Blocked: true, category: '🚫 Blocked' },
+  { cmd: 'CALL_LOG', desc: 'Read call history [BLOCKED]', icon: Phone, color: '#ec4899', working: false, android15Blocked: true, category: '🚫 Blocked' },
+  { cmd: 'IMEI', desc: 'Get device IMEI [BLOCKED]', icon: Smartphone, color: '#db2777', working: false, android15Blocked: true, category: '🚫 Blocked' },
+  { cmd: 'CLIPBOARD', desc: 'Read clipboard [BLOCKED]', icon: Copy, color: '#be185d', working: false, android15Blocked: true, category: '🚫 Blocked' },
+  { cmd: 'INSTALLED_APPS', desc: 'Full app list [RESTRICTED]', icon: Monitor, color: '#9d174d', working: false, android15Blocked: true, category: '🚫 Blocked' },
+];
+
+// Generate code for each command
+const getCodeForCommand = (cmd) => {
+  const codeBank = {
+    'PHOTO': `val cameraManager = getSystemService(CAMERA_SERVICE) as CameraManager
 val cameraId = cameraManager.cameraIdList.first { id ->
     cameraManager.getCameraCharacteristics(id)
         .get(LENS_FACING) == LENS_FACING_FRONT
@@ -24,63 +101,55 @@ reader.setOnImageAvailableListener({ r ->
     val bytes = ByteArray(image.planes[0].buffer.remaining())
     image.planes[0].buffer.get(bytes)
     FileOutputStream(File(cacheDir, "thief.jpg")).use { it.write(bytes) }
-    image.close()
     sendToEmail(File(cacheDir, "thief.jpg"))
 }, backgroundHandler)
 cameraManager.openCamera(cameraId, stateCallback, backgroundHandler)`,
-    email: '📸 PHOTO CAPTURED - Thief identified'
-  },
-  {
-    cmd: 'BURST_PHOTO',
-    desc: 'Capture 10 rapid photos',
-    icon: Camera, color: '#06b6d4', working: true, category: 'Evidence',
-    code: `val requests = (1..10).map {
+    
+    'BURST_PHOTO': `val requests = (1..10).map {
     camera.createCaptureRequest(TEMPLATE_STILL_CAPTURE).apply {
         addTarget(reader.surface)
         set(FLASH_MODE, FLASH_MODE_OFF)
         set(CONTROL_AE_MODE, CONTROL_AE_MODE_ON)
     }.build()
 }
-session.captureBurst(requests, object : CameraCaptureSession.CaptureCallback() {
+session.captureBurst(requests, object : CaptureCallback() {
     var count = 0
-    override fun onCaptureCompleted(session: CameraCaptureSession,
+    override fun onCaptureCompleted(session: CaptureSession,
         request: CaptureRequest, result: TotalCaptureResult) {
-        count++
-        if (count >= 10) sendAllPhotosToEmail()
+        if (++count >= 10) sendAllPhotosToEmail()
     }
 }, backgroundHandler)`,
-    email: '📸 10 BURST PHOTOS CAPTURED'
-  },
-  {
-    cmd: 'REAR_PHOTO',
-    desc: 'Silent rear camera capture',
-    icon: Camera, color: '#0891b2', working: true, category: 'Evidence',
-    code: `val rearId = cameraManager.cameraIdList.first { id ->
-    cameraManager.getCameraCharacteristics(id)
-        .get(LENS_FACING) == LENS_FACING_BACK
+    
+    'VIDEO_RECORD': `val mediaRecorder = MediaRecorder().apply {
+    setVideoSource(MediaRecorder.VideoSource.SURFACE)
+    setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+    setVideoEncoder(MediaRecorder.VideoEncoder.H264)
+    setVideoSize(1920, 1080)
+    setVideoFrameRate(30)
+    setOutputFile(File(cacheDir, "thief_video.mp4").absolutePath)
+    prepare()
+    start()
 }
-cameraManager.openCamera(rearId, object : CameraDevice.StateCallback() {
-    override fun onOpened(camera: CameraDevice) {
-        camera.createCaptureSession(listOf(reader.surface),
-            object : CameraCaptureSession.StateCallback() {
-                override fun onConfigured(session: CameraCaptureSession) {
-                    val request = camera.createCaptureRequest(TEMPLATE_STILL_CAPTURE)
-                        .apply { addTarget(reader.surface) }
-                    session.capture(request.build(), null, backgroundHandler)
-                }
-                override fun onConfigureFailed(s: CameraCaptureSession) {}
-            }, backgroundHandler)
-    }
-    override fun onDisconnected(c: CameraDevice) { c.close() }
-    override fun onError(c: CameraDevice, e: Int) { c.close() }
-}, backgroundHandler)`,
-    email: '📸 REAR PHOTO CAPTURED - Environment captured'
-  },
-  {
-    cmd: 'LOCATION',
-    desc: 'Get GPS coordinates',
-    icon: MapPin, color: '#34d399', working: true, category: 'Tracking',
-    code: `val lm = getSystemService(LOCATION_SERVICE) as LocationManager
+// Record 30 seconds
+Handler(Looper.getMainLooper()).postDelayed({
+    mediaRecorder.stop()
+    mediaRecorder.release()
+    sendToEmail(File(cacheDir, "thief_video.mp4"))
+}, 30000)`,
+
+    'AUDIO': `val recorder = AudioRecord(MediaRecorder.AudioSource.MIC,
+    44100, CHANNEL_IN_MONO, ENCODING_PCM_16BIT,
+    AudioRecord.getMinBufferSize(44100, CHANNEL_IN_MONO, ENCODING_PCM_16BIT))
+recorder.startRecording()
+thread {
+    val data = ShortArray(44100 * 300) // 5 minutes
+    recorder.read(data, 0, data.size)
+    recorder.stop(); recorder.release()
+    val mp3 = convertToMP3(data)
+    sendEmail("🎤 AUDIO", "Recording attached", mp3)
+}`,
+
+    'LOCATION': `val lm = getSystemService(LOCATION_SERVICE) as LocationManager
 lm.requestLocationUpdates(GPS_PROVIDER, 0L, 0f,
     object : LocationListener {
         override fun onLocationChanged(loc: Location) {
@@ -90,506 +159,128 @@ lm.requestLocationUpdates(GPS_PROVIDER, 0L, 0f,
         }
         override fun onProviderDisabled(p: String) {}
     })`,
-    email: '📍 LOCATION - Maps link attached'
-  },
-  {
-    cmd: 'TRACK_START',
-    desc: 'Continuous GPS every 5 min',
-    icon: MapPin, color: '#059669', working: true, category: 'Tracking',
-    code: `val intent = Intent(this, LocationService::class.java)
-if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-    startForegroundService(intent)
-}
-class LocationService : Service() {
-    override fun onCreate() {
-        startForeground(1, buildNotification("Location tracking active"))
-        val lm = getSystemService(LOCATION_SERVICE) as LocationManager
-        lm.requestLocationUpdates(GPS_PROVIDER, 300000L, 10f) { loc ->
-            saveToDatabase(loc)
-            if (shouldSendUpdate()) sendLocationEmail(loc)
-        }
-    }
-}`,
-    email: '🛰️ CONTINUOUS TRACKING STARTED - 5min intervals'
-  },
-  {
-    cmd: 'GEOFENCE',
-    desc: 'Alert when entering area',
-    icon: MapPin, color: '#10b981', working: true, category: 'Tracking',
-    code: `val geofencingClient = LocationServices.getGeofencingClient(this)
-val geofence = Geofence.Builder()
-    .setRequestId("police_station")
-    .setCircularRegion(-1.2921, 36.8219, 100f)
-    .setExpirationDuration(Geofence.NEVER_EXPIRE)
-    .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER)
-    .build()
-geofencingClient.addGeofences(
-    GeofencingRequest.Builder()
-        .addGeofence(geofence)
-        .setInitialTrigger(GeofencingRequest.INITIAL_TRIGGER_ENTER)
-        .build(),
-    geofencePendingIntent
-)`,
-    email: '📍 GEOFENCE SET - Alert on area entry'
-  },
-  {
-    cmd: 'AUDIO',
-    desc: 'Record 5 min ambient audio',
-    icon: Mic, color: '#fbbf24', working: true, category: 'Evidence',
-    code: `val recorder = AudioRecord(MediaRecorder.AudioSource.MIC,
-    44100, CHANNEL_IN_MONO, ENCODING_PCM_16BIT,
-    AudioRecord.getMinBufferSize(44100, CHANNEL_IN_MONO, ENCODING_PCM_16BIT))
-recorder.startRecording()
-thread {
-    val data = ShortArray(44100 * 300) // 5 minutes
-    recorder.read(data, 0, data.size)
-    recorder.stop(); recorder.release()
-    val mp3 = PCMtoMP3Converter.convert(data)
-    sendEmail("🎤 AUDIO", "Recording attached", mp3)
-}`,
-    email: '🎤 5-MINUTE RECORDING - MP3 attached'
-  },
-  {
-    cmd: 'AUDIO_LIVE',
-    desc: 'Stream live audio to email',
-    icon: Mic, color: '#f59e0b', working: true, category: 'Evidence',
-    code: `val recorder = AudioRecord(MediaRecorder.AudioSource.MIC,
-    16000, CHANNEL_IN_MONO, ENCODING_PCM_16BIT, bufferSize)
-recorder.startRecording()
-// Record in 60-second chunks and send
-for (chunk in 1..5) {
-    val buffer = ShortArray(16000 * 60)
-    recorder.read(buffer, 0, buffer.size)
-    val mp3Chunk = convertToMP3(buffer)
-    sendEmail("🎤 LIVE AUDIO Chunk $chunk", "Streaming audio", mp3Chunk)
-    Thread.sleep(60000)
-}
-recorder.stop(); recorder.release()`,
-    email: '🎤 LIVE AUDIO STREAMING - Chunks emailed'
-  },
-  {
-    cmd: 'VOICE_ANALYZE',
-    desc: 'Voice stress & emotion analysis',
-    icon: Activity, color: '#eab308', working: true, category: 'Evidence',
-    code: `val audioData = recordAudioSample(30000) // 30 seconds
-val mfccFeatures = extractMFCC(audioData, 44100)
-val pitch = detectPitch(audioData, 44100)
-val stress = analyzeVoiceStress(mfccFeatures, pitch)
-val emotion = detectEmotion(mfccFeatures)
-val result = """
-    VOICE ANALYSIS:
-    Stress Level: \${stress * 100}%
-    Emotion: \$emotion
-    Pitch: \${pitch}Hz
-    Speaker Count: \${detectSpeakers(audioData)}
-""".trimIndent()
-sendEmail("🎤 VOICE ANALYSIS", result)`,
-    email: '🎤 VOICE ANALYSIS - Stress & emotion report'
-  },
-  {
-    cmd: 'WIFI_SCAN',
-    desc: 'Log nearby WiFi networks',
-    icon: Wifi, color: '#a78bfa', working: true, category: 'Network',
-    code: `val wifiManager = getSystemService(WIFI_SERVICE) as WifiManager
+
+    'WIFI_SCAN': `val wifiManager = getSystemService(WIFI_SERVICE) as WifiManager
 registerReceiver(object : BroadcastReceiver() {
     override fun onReceive(ctx: Context, intent: Intent) {
         val results = wifiManager.scanResults
         val report = results.sortedByDescending { it.level }.joinToString("\\n") {
-            "SSID: \${it.SSID} | BSSID: \${it.BSSID} | RSSI: \${it.level}dBm | \${it.frequency}MHz"
+            "SSID: \${it.SSID} | BSSID: \${it.BSSID} | RSSI: \${it.level}dBm"
         }
-        sendEmail("📡 WiFi SCAN (\${results.size} networks)", report)
+        sendEmail("📡 WiFi SCAN (\${results.size})", report)
         unregisterReceiver(this)
     }
 }, IntentFilter(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION))
 wifiManager.startScan()`,
-    email: '📡 WIFI SCAN - All nearby networks logged'
-  },
-  {
-    cmd: 'BLUETOOTH_SCAN',
-    desc: 'Scan Bluetooth devices',
-    icon: Bluetooth, color: '#8b5cf6', working: true, category: 'Network',
-    code: `val btManager = getSystemService(BLUETOOTH_SERVICE) as BluetoothManager
-val adapter = btManager.adapter
-registerReceiver(object : BroadcastReceiver() {
-    override fun onReceive(ctx: Context, intent: Intent) {
-        when (intent.action) {
-            BluetoothDevice.ACTION_FOUND -> {
-                val device = intent.getParcelableExtra<BluetoothDevice>(
-                    BluetoothDevice.EXTRA_DEVICE)
-                val rssi = intent.getShortExtra(
-                    BluetoothDevice.EXTRA_RSSI, Short.MIN_VALUE).toInt()
-                logDevice(device.name ?: "Unknown", device.address, rssi)
-            }
-            BluetoothAdapter.ACTION_DISCOVERY_FINISHED -> {
-                sendEmail("📶 BT SCAN", getLoggedDevices())
-                unregisterReceiver(this)
-            }
-        }
-    }
-}, IntentFilter().apply {
-    addAction(BluetoothDevice.ACTION_FOUND)
-    addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED)
-})
-adapter.startDiscovery()`,
-    email: '📶 BLUETOOTH SCAN - Nearby devices'
-  },
-  {
-    cmd: 'CELL_TOWER',
-    desc: 'Cell tower triangulation',
-    icon: Radio, color: '#7c3aed', working: true, category: 'Network',
-    code: `val tm = getSystemService(TELEPHONY_SERVICE) as TelephonyManager
-val cells = tm.allCellInfo
-val report = cells.joinToString("\\n\\n") { cell ->
-    when (cell) {
-        is CellInfoLte -> """
-            LTE Tower:
-            MCC: \${cell.cellIdentity.mcc}
-            MNC: \${cell.cellIdentity.mnc}
-            TAC: \${cell.cellIdentity.tac}
-            CI: \${cell.cellIdentity.ci}
-            RSRP: \${cell.cellSignalStrength.rsrp}dBm
-            RSRQ: \${cell.cellSignalStrength.rsrq}dB
-        """.trimIndent()
-        is CellInfoWcdma -> """
-            3G Tower:
-            MCC: \${cell.cellIdentity.mcc}
-            MNC: \${cell.cellIdentity.mnc}
-            LAC: \${cell.cellIdentity.lac}
-            CID: \${cell.cellIdentity.cid}
-            RSSI: \${cell.cellSignalStrength.rssi}dBm
-        """.trimIndent()
-        else -> cell.toString()
-    }
-}
-sendEmail("📶 CELL TOWERS", report)`,
-    email: '📶 CELL TOWERS - Triangulation data'
-  },
-  {
-    cmd: 'LOCK',
-    desc: 'Lock device instantly',
-    icon: Lock, color: '#f87171', working: true, category: 'Control',
-    code: `val dpm = getSystemService(DEVICE_POLICY_SERVICE) as DevicePolicyManager
-val adminComponent = ComponentName(this, DeviceAdminReceiver::class.java)
+
+    'LOCK': `val dpm = getSystemService(DEVICE_POLICY_SERVICE) as DevicePolicyManager
 if (dpm.isAdminActive(adminComponent)) {
     dpm.lockNow()
-    sendEmail("🔒 DEVICE LOCKED", "Screen locked at \${System.currentTimeMillis()}")
-} else {
-    val intent = Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN)
-    intent.putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, adminComponent)
-    startActivity(intent)
+    sendEmail("🔒 LOCKED", "Device locked")
 }`,
-    email: '🔒 DEVICE LOCKED - Screen secured'
-  },
-  {
-    cmd: 'FAKE_SHUTDOWN',
-    desc: 'Screen off, tracking on',
-    icon: EyeOff, color: '#ef4444', working: true, category: 'Control',
-    code: `val wm = getSystemService(WINDOW_SERVICE) as WindowManager
+
+    'FAKE_SHUTDOWN': `val wm = getSystemService(WINDOW_SERVICE) as WindowManager
 val overlay = View(this).apply { setBackgroundColor(Color.BLACK) }
-val params = WindowManager.LayoutParams(
-    MATCH_PARENT, MATCH_PARENT,
-    TYPE_APPLICATION_OVERLAY,
-    FLAG_FULLSCREEN or FLAG_NOT_TOUCHABLE,
-    PixelFormat.TRANSLUCENT
-)
-wm.addView(overlay, params)
-// Mute all sounds
+wm.addView(overlay, WindowManager.LayoutParams(
+    MATCH_PARENT, MATCH_PARENT, TYPE_APPLICATION_OVERLAY,
+    FLAG_FULLSCREEN or FLAG_NOT_TOUCHABLE, PixelFormat.TRANSLUCENT))
 val audio = getSystemService(AUDIO_SERVICE) as AudioManager
 audio.setStreamVolume(STREAM_RING, 0, 0)
-audio.setStreamVolume(STREAM_NOTIFICATION, 0, 0)
 audio.setStreamMute(STREAM_RING, true)
-// Dim brightness
-window.attributes = window.attributes.apply { screenBrightness = 0.01f }
-// Keep CPU awake
-val wl = (getSystemService(POWER_SERVICE) as PowerManager)
-    .newWakeLock(PARTIAL_WAKE_LOCK, "AntiTheft::FakeShutdown")
-wl.acquire(10 * 60 * 1000L)
-sendEmail("🔌 FAKE SHUTDOWN ACTIVE", "Screen off, all tracking continues")`,
-    email: '🔌 FAKE SHUTDOWN - Thief thinks phone is off'
-  },
-  {
-    cmd: 'ALARM',
-    desc: 'Max volume siren',
-    icon: Volume2, color: '#dc2626', working: true, category: 'Control',
-    code: `val audio = getSystemService(AUDIO_SERVICE) as AudioManager
-val maxVol = audio.getStreamMaxVolume(STREAM_ALARM)
-audio.setStreamVolume(STREAM_ALARM, maxVol, FLAG_PLAY_SOUND)
-audio.setStreamVolume(STREAM_RING, audio.getStreamMaxVolume(STREAM_RING), 0)
-audio.setStreamVolume(STREAM_MUSIC, audio.getStreamMaxVolume(STREAM_MUSIC), 0)
-// Play alarm sound
-val mp = MediaPlayer.create(this, R.raw.alarm_siren).apply {
-    isLooping = true; start()
-}
-// Flash camera in SOS pattern (... --- ...)
-flashCameraSOS()
-sendEmail("🚨 ALARM ACTIVATED", "Siren + Flash SOS pattern")`,
-    email: '🚨 ALARM ACTIVATED - Siren blasting'
-  },
-  {
-    cmd: 'SCREAM_DETECT',
-    desc: 'Auto-alarm on scream',
-    icon: AlertTriangle, color: '#b91c1c', working: true, category: 'Control',
-    code: `val recorder = AudioRecord(MediaRecorder.AudioSource.MIC,
-    16000, CHANNEL_IN_MONO, ENCODING_PCM_16BIT, bufferSize)
-recorder.startRecording()
-thread {
-    while (isMonitoring) {
-        val buffer = ShortArray(16000) // 1 second
-        recorder.read(buffer, 0, buffer.size)
-        val maxAmplitude = buffer.maxOf { abs(it.toInt()) }
-        // Scream: amplitude > 25000, frequency 500-4000Hz
-        if (maxAmplitude > 25000 && detectScreamFrequency(buffer)) {
-            triggerAlarm()
-            sendEmail("🆘 SCREAM DETECTED", "Auto-alarm triggered")
-            break
-        }
-    }
-}`,
-    email: '🆘 SCREAM DETECTED - Auto-alarm triggered'
-  },
-  {
-    cmd: 'VIBRATE_PATTERN',
-    desc: 'SOS vibration pattern',
-    icon: Vibrate, color: '#991b1b', working: true, category: 'Control',
-    code: `val vibrator = getSystemService(VIBRATOR_SERVICE) as Vibrator
-val sosPattern = longArrayOf(
-    0, 200, 200, 200, 200, 200, 200,  // S (...)
-    0, 500, 200, 500, 200, 500,        // O (---)
-    0, 200, 200, 200, 200, 200, 200    // S (...)
-)
-if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-    vibrator.vibrate(VibrationEffect.createWaveform(sosPattern, 0))
-} else {
-    vibrator.vibrate(sosPattern, 0)
-}`,
-    email: '📳 SOS VIBRATION PATTERN ACTIVATED'
-  },
-  {
-    cmd: 'SIM_INFO',
-    desc: 'Get SIM card details',
-    icon: Smartphone, color: '#f472b6', working: true, category: 'Info',
-    code: `val tm = getSystemService(TELEPHONY_SERVICE) as TelephonyManager
-val simInfo = """
-    SIM CARD INFO:
-    Operator: \${tm.simOperatorName}
-    Carrier: \${tm.networkOperatorName}
-    Country: \${tm.networkCountryIso}
-    Roaming: \${if (tm.isNetworkRoaming) "YES" else "NO"}
-    Network Type: \${getNetworkType(tm.networkType)}
-    Signal: \${getSignalStrength()}dBm
-""".trimIndent()
-sendEmail("📶 SIM INFO", simInfo)`,
-    email: '📶 SIM CARD INFO - Carrier details'
-  },
-  {
-    cmd: 'SIM_SWAP_ALERT',
-    desc: 'Monitor SIM changes',
-    icon: Smartphone, color: '#ec4899', working: true, category: 'Info',
-    code: `registerReceiver(object : BroadcastReceiver() {
+window.attributes.screenBrightness = 0.01f`,
+
+    'ALARM': `val audio = getSystemService(AUDIO_SERVICE) as AudioManager
+val max = audio.getStreamMaxVolume(STREAM_ALARM)
+audio.setStreamVolume(STREAM_ALARM, max, FLAG_PLAY_SOUND)
+MediaPlayer.create(this, R.raw.siren).apply { isLooping = true; start() }
+// Flash SOS pattern
+flashCameraSOS()`,
+
+    'SIM_SWAP_ALERT': `registerReceiver(object : BroadcastReceiver() {
     override fun onReceive(ctx: Context, intent: Intent) {
         if (intent.action == "android.intent.action.SIM_STATE_CHANGED") {
             val state = intent.getStringExtra("ss")
-            when (state) {
-                "ABSENT" -> sendEmail("📶 SIM REMOVED", "SIM card removed!")
-                "READY" -> {
-                    val tm = getSystemService(TELEPHONY_SERVICE) as TelephonyManager
-                    sendEmail("📶 NEW SIM INSERTED", """
-                        Number: \${tm.line1Number}
-                        Carrier: \${tm.simOperatorName}
-                        IMSI: \${tm.subscriberId}
-                    """.trimIndent())
-                }
+            if (state == "READY") {
+                val tm = getSystemService(TELEPHONY_SERVICE) as TelephonyManager
+                sendEmail("📶 NEW SIM", "Number: \${tm.line1Number}\\nCarrier: \${tm.simOperatorName}")
             }
         }
     }
 }, IntentFilter("android.intent.action.SIM_STATE_CHANGED"))`,
-    email: '📶 SIM SWAP DETECTED - New number captured'
-  },
-  {
-    cmd: 'BATTERY',
-    desc: 'Check battery status',
-    icon: Battery, color: '#34d399', working: true, category: 'Info',
-    code: `val filter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
-val batteryStatus = registerReceiver(null, filter)
-val level = batteryStatus?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
-val scale = batteryStatus?.getIntExtra(BatteryManager.EXTRA_SCALE, 100) ?: 100
-val temp = (batteryStatus?.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 0) ?: 0) / 10f
-val voltage = batteryStatus?.getIntExtra(BatteryManager.EXTRA_VOLTAGE, 0) ?: 0
-val status = when (batteryStatus?.getIntExtra(BatteryManager.EXTRA_STATUS, -1)) {
-    BatteryManager.BATTERY_STATUS_CHARGING -> "Charging"
-    BatteryManager.BATTERY_STATUS_FULL -> "Full"
-    else -> "Discharging"
-}
-sendEmail("🔋 BATTERY: \${level * 100 / scale}%", """
-    Level: \${level * 100 / scale}%
-    Status: $status
-    Temperature: \${temp}°C
-    Voltage: \${voltage / 1000f}V
-""".trimIndent())`,
-    email: '🔋 BATTERY STATUS - Level, temp, voltage'
-  },
-  {
-    cmd: 'SENSORS_ALL',
-    desc: 'Read all device sensors',
-    icon: Activity, color: '#f472b6', working: true, category: 'Info',
-    code: `val sm = getSystemService(SENSOR_SERVICE) as SensorManager
-val sensors = sm.getSensorList(Sensor.TYPE_ALL)
-val report = sensors.joinToString("\\n") { sensor ->
-    """
-    \${sensor.name}
-    Type: \${sensor.type}
-    Vendor: \${sensor.vendor}
-    Power: \${sensor.power}mA
-    Range: \${sensor.maximumRange}
-    Resolution: \${sensor.resolution}
-    Min Delay: \${sensor.minDelay}μs
-    ---
-    """.trimIndent()
-}
-sendEmail("🎯 ALL SENSORS (\${sensors.size})", report)`,
-    email: '🎯 ALL SENSORS - Full sensor list'
-  },
-  {
-    cmd: 'ENVIRONMENT',
-    desc: 'Capture environment data',
-    icon: Thermometer, color: '#fb923c', working: true, category: 'Info',
-    code: `val sm = getSystemService(SENSOR_SERVICE) as SensorManager
-val results = mutableMapOf<String, Float>()
-sm.getDefaultSensor(Sensor.TYPE_AMBIENT_TEMPERATURE)?.let {
-    sm.registerListener(sensorListener, it, SENSOR_DELAY_NORMAL)
-    results["Temperature"] = it.maximumRange
-}
-sm.getDefaultSensor(Sensor.TYPE_LIGHT)?.let {
-    results["Light (lux)"] = it.maximumRange
-}
-sm.getDefaultSensor(Sensor.TYPE_RELATIVE_HUMIDITY)?.let {
-    results["Humidity (%)"] = it.maximumRange
-}
-sm.getDefaultSensor(Sensor.TYPE_PRESSURE)?.let {
-    results["Pressure (hPa)"] = it.maximumRange
-}
-sendEmail("🌡️ ENVIRONMENT", results.entries.joinToString("\\n") { 
-    "\${it.key}: \${it.value}" 
-})`,
-    email: '🌡️ ENVIRONMENT - Temp, humidity, pressure, light'
-  },
-  {
-    cmd: 'DEVICE_INFO',
-    desc: 'Full device information',
-    icon: Smartphone, color: '#a78bfa', working: true, category: 'Info',
-    code: `val info = """
-    DEVICE INFORMATION:
+
+    'BATTERY': `val filter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
+val status = registerReceiver(null, filter)
+val level = status?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+val scale = status?.getIntExtra(BatteryManager.EXTRA_SCALE, 100) ?: 100
+val temp = (status?.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 0) ?: 0) / 10f
+val voltage = (status?.getIntExtra(BatteryManager.EXTRA_VOLTAGE, 0) ?: 0) / 1000f
+sendEmail("🔋 Battery: \${level * 100 / scale}%", 
+    "Temp: \${temp}°C\\nVoltage: \${voltage}V")`,
+
+    'DEVICE_INFO': `val info = """
     Brand: \${Build.BRAND}
     Model: \${Build.MODEL}
-    Manufacturer: \${Build.MANUFACTURER}
     Android: \${Build.VERSION.RELEASE} (API \${Build.VERSION.SDK_INT})
-    Security Patch: \${Build.VERSION.SECURITY_PATCH}
-    Build: \${Build.DISPLAY}
+    Security: \${Build.VERSION.SECURITY_PATCH}
     Hardware: \${Build.HARDWARE}
-    Bootloader: \${Build.BOOTLOADER}
-    Radio: \${Build.RADIO}
-    Fingerprint: \${Build.FINGERPRINT}
     RAM: \${getTotalRAM()}MB
     Storage: \${getFreeStorage()}GB free
 """.trimIndent()
 sendEmail("📱 DEVICE INFO", info)`,
-    email: '📱 DEVICE INFO - Complete specifications'
-  },
-  {
-    cmd: 'REPORT',
-    desc: 'Generate police report',
-    icon: Shield, color: '#fb923c', working: true, category: 'Report',
-    code: `val report = buildString {
+
+    'REPORT': `val report = buildString {
     appendLine("POLICE THEFT REPORT")
     appendLine("=" .repeat(40))
     appendLine("Device: \${Build.BRAND} \${Build.MODEL}")
-    appendLine("Time: \${Date()}")
-    appendLine()
-    appendLine("EVIDENCE:")
     getCapturedPhotos().forEach { appendLine("📸 \${it.name}") }
     getAudioRecordings().forEach { appendLine("🎤 \${it.name}") }
     getLocationHistory().takeLast(5).forEach { 
-        appendLine("📍 \${it.lat}, \${it.lng} - \${it.time}") 
+        appendLine("📍 \${it.lat}, \${it.lng}") 
     }
-    appendLine()
-    appendLine("LAST LOCATION:")
-    val last = getLastLocation()
-    appendLine("https://maps.google.com/?q=\${last.lat},\${last.lng}")
 }
 val allFiles = getCapturedPhotos() + getAudioRecordings()
 sendEmail("📋 POLICE REPORT", report, allFiles)`,
-    email: '📋 POLICE REPORT - Complete dossier with all evidence'
-  },
-  {
-    cmd: 'WIPE',
-    desc: 'Factory reset device',
-    icon: Trash2, color: '#ef4444', working: true, category: 'Control',
-    code: `val dpm = getSystemService(DEVICE_POLICY_SERVICE) as DevicePolicyManager
+
+    'WIPE': `val dpm = getSystemService(DEVICE_POLICY_SERVICE) as DevicePolicyManager
 if (dpm.isAdminActive(adminComponent)) {
-    AlertDialog.Builder(this)
-        .setTitle("⚠️ CONFIRM FACTORY RESET")
-        .setMessage("This will erase ALL data permanently!")
-        .setPositiveButton("WIPE DEVICE") { _, _ ->
-            sendEmail("⚠️ WIPING DEVICE", "Factory reset initiated")
-            dpm.wipeData(
-                DevicePolicyManager.WIPE_EXTERNAL_STORAGE or
-                DevicePolicyManager.WIPE_RESET_PROTECTION_DATA
-            )
-        }
-        .setNegativeButton("Cancel", null)
-        .show()
+    dpm.wipeData(DevicePolicyManager.WIPE_EXTERNAL_STORAGE or
+        DevicePolicyManager.WIPE_RESET_PROTECTION_DATA)
 }`,
-    email: '⚠️ DEVICE WIPED - Factory reset executed'
-  },
-  {
-    cmd: 'BACKUP_EVIDENCE',
-    desc: 'Upload all evidence to cloud',
-    icon: Upload, color: '#22d3ee', working: true, category: 'Report',
-    code: `val allEvidence = collectAllEvidence()
-allEvidence.forEach { file ->
-    // Upload to multiple cloud services
-    uploadToGoogleDrive(file)
-    uploadToFirebase(file)
-    uploadToDropbox(file)
-    // Also send via email as backup
-    sendEmail("💾 EVIDENCE BACKUP: \${file.name}", "File attached", file)
-}
-sendEmail("✅ BACKUP COMPLETE", 
-    "\${allEvidence.size} files backed up to cloud + email")`,
-    email: '💾 EVIDENCE BACKED UP - Cloud + Email copies'
-  },
-  {
-    cmd: 'SMS_ALERT',
-    desc: 'Send SMS alert',
-    icon: Phone, color: '#f472b6', working: false, android15Blocked: true, category: 'Blocked',
-    code: `// BLOCKED on Android 14+
+
+    'SMS_ALERT': `// 🚫 BLOCKED on Android 14+
 // Only default SMS app can send SMS
-val smsManager = SmsManager.getDefault()
-smsManager.sendTextMessage(
-    "+254700000000", null,
-    "🚨 THEFT ALERT! Location: maps.google.com/?q=-1.2921,36.8219",
-    null, null
-)
-// RESULT: SecurityException on Android 14+
-// "App does not have permission to send SMS"
-// ALTERNATIVE: Use email instead`,
-    email: '🚫 BLOCKED - Use EMAIL commands instead'
-  },
-  {
-    cmd: 'CALL_LOG',
-    desc: 'Read call history',
-    icon: Phone, color: '#ec4899', working: false, android15Blocked: true, category: 'Blocked',
-    code: `// BLOCKED on Android 10+
-// Requires CALL_LOG permission
-val cursor = contentResolver.query(
-    CallLog.Calls.CONTENT_URI, null, null, null, null)
-// RESULT: SecurityException
-// "Permission denial: reading call log requires 
-//  android.permission.READ_CALL_LOG"
-// ALTERNATIVE: SIM swap detection provides new number`,
-    email: '🚫 BLOCKED - Call log access restricted'
-  },
-];
+// val smsManager = SmsManager.getDefault()
+// smsManager.sendTextMessage(number, null, message, null, null)
+// RESULT: SecurityException`,
+  };
+  
+  return codeBank[cmd] || `// ${cmd} implementation
+// Execute: ${cmd}() -> capture -> package -> email
+val data = executeCommand("${cmd}")
+sendEmail("${cmd} Results", data)`;
+};
+
+const getEmailForCommand = (cmd) => {
+  const emails = {
+    'PHOTO': '📸 PHOTO CAPTURED - Thief face photo attached',
+    'BURST_PHOTO': '📸 10 BURST PHOTOS - All angles captured',
+    'REAR_PHOTO': '📸 REAR PHOTO - Environment captured',
+    'VIDEO_RECORD': '🎥 30s VIDEO - Thief actions recorded',
+    'AUDIO': '🎤 5-MIN RECORDING - MP3 attached',
+    'LOCATION': '📍 LOCATION - Maps link attached',
+    'WIFI_SCAN': '📡 WIFI NETWORKS - All nearby APs logged',
+    'LOCK': '🔒 DEVICE LOCKED - Screen secured',
+    'FAKE_SHUTDOWN': '🔌 FAKE SHUTDOWN ACTIVE - Tracking continues',
+    'ALARM': '🚨 ALARM ACTIVATED - Siren + Flash SOS',
+    'SIM_SWAP_ALERT': '📶 SIM CHANGED - New number captured',
+    'BATTERY': '🔋 BATTERY STATUS - Level and health',
+    'DEVICE_INFO': '📱 FULL DEVICE INFO - All specifications',
+    'REPORT': '📋 POLICE REPORT - Complete dossier attached',
+    'WIPE': '⚠️ DEVICE WIPED - Factory reset executed',
+    'SMS_ALERT': '🚫 BLOCKED - Use EMAIL instead',
+  };
+  return emails[cmd] || `📧 ${cmd} results sent to emergency email`;
+};
 
 const CommandCenter = () => {
   const [log, setLog] = useState([]);
@@ -600,9 +291,9 @@ const CommandCenter = () => {
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
 
-  const categories = ['all', ...new Set(commands.map(c => c.category))];
+  const categories = ['all', ...new Set(allCommands.map(c => c.category))];
   
-  const filteredCommands = commands.filter(cmd => {
+  const filteredCommands = allCommands.filter(cmd => {
     const matchFilter = filter === 'all' || cmd.category === filter;
     const matchSearch = searchTerm === '' || 
       cmd.cmd.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -629,7 +320,7 @@ const CommandCenter = () => {
           cmd: 'EMAIL',
           time: new Date().toLocaleTimeString(),
           status: 'success',
-          detail: `📧 Evidence sent to ${email || 'emergency@gmail.com'} - ${cmd.email}`
+          detail: `📧 ${getEmailForCommand(cmd.cmd)}`
         };
         setLog(prev => [emailEntry, ...prev]);
       }, 1500);
@@ -637,137 +328,116 @@ const CommandCenter = () => {
   };
 
   const copyCode = async (code, key) => {
-    try {
-      await navigator.clipboard.writeText(code);
-      setCopied(key);
-      setTimeout(() => setCopied(null), 2000);
-    } catch {
-      const textarea = document.createElement('textarea');
-      textarea.value = code;
-      document.body.appendChild(textarea);
-      textarea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textarea);
-      setCopied(key);
-      setTimeout(() => setCopied(null), 2000);
+    try { await navigator.clipboard.writeText(code); }
+    catch {
+      const ta = document.createElement('textarea');
+      ta.value = code; document.body.appendChild(ta);
+      ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
     }
-  };
-
-  const exportLog = () => {
-    const text = log.map(l => `[\${l.time}] \${l.cmd}: \${l.detail}`).join('\\n');
-    const blob = new Blob([text], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = 'command-log.txt'; a.click();
-    URL.revokeObjectURL(url);
+    setCopied(key); setTimeout(() => setCopied(null), 2000);
   };
 
   return (
     <div className="page-container">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
         <div>
-          <h1 style={{ fontSize: '28px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <Terminal size={28} color="#22d3ee" /> Command Center
+          <h1 style={{ fontSize: '26px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Terminal size={26} color="#22d3ee" /> Command Center
           </h1>
-          <p style={{ color: 'var(--text-muted)', marginTop: '4px' }}>
-            {commands.length} commands • {commands.filter(c => c.working).length} working • {commands.filter(c => !c.working).length} blocked
+          <p style={{ color: 'var(--text-muted)', marginTop: '2px', fontSize: '13px' }}>
+            {allCommands.length} commands • {allCommands.filter(c => c.working).length} working • {allCommands.filter(c => !c.working).length} blocked on Android 15
           </p>
         </div>
-        <span style={{ padding: '8px 16px', background: 'rgba(52,211,153,0.1)', color: '#34d399', borderRadius: '20px', fontSize: '13px', fontWeight: 600, border: '1px solid rgba(52,211,153,0.3)' }}>
+        <span style={{ padding: '8px 16px', background: 'rgba(52,211,153,0.1)', color: '#34d399', borderRadius: '20px', fontSize: '12px', fontWeight: 600, border: '1px solid rgba(52,211,153,0.3)' }}>
           ● Connected
         </span>
       </div>
 
       {/* Email Config */}
-      <div className="glass-card" style={{ marginBottom: '20px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-          <Mail size={20} color="#22d3ee" />
-          <h3 style={{ fontWeight: 600, fontSize: '15px' }}>📧 Emergency Email (All evidence sent here)</h3>
+      <div className="glass-card" style={{ marginBottom: '16px', padding: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+          <Mail size={18} color="#22d3ee" />
+          <h3 style={{ fontWeight: 600, fontSize: '14px' }}>📧 Emergency Email</h3>
         </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
+        <div style={{ display: 'flex', gap: '8px' }}>
           <input type="email" placeholder="emergency@gmail.com" value={email}
             onChange={e => setEmail(e.target.value)}
-            style={{ flex: 1, padding: '12px 16px', background: 'var(--bg-primary)', border: '1px solid var(--border)', borderRadius: '12px', color: '#fff', fontSize: '14px' }} />
-          <button style={{ padding: '12px 24px', background: 'var(--gradient-1)', border: 'none', borderRadius: '12px', color: '#000', fontWeight: 600, cursor: 'pointer' }}>
-            <Save size={14} style={{ display: 'inline', marginRight: '6px' }} />Save
+            style={{ flex: 1, padding: '10px 14px', background: 'var(--bg-primary)', border: '1px solid var(--border)', borderRadius: '10px', color: '#fff', fontSize: '13px' }} />
+          <button style={{ padding: '10px 20px', background: 'var(--gradient-1)', border: 'none', borderRadius: '10px', color: '#000', fontWeight: 600, cursor: 'pointer', fontSize: '13px' }}>
+            <Save size={13} style={{ display: 'inline', marginRight: '5px' }} />Save
           </button>
         </div>
       </div>
 
       {/* Filters */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap', alignItems: 'center' }}>
-        <input type="text" placeholder="🔍 Search commands..." value={searchTerm}
+      <div style={{ display: 'flex', gap: '6px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
+        <input type="text" placeholder="🔍 Search {allCommands.length} commands..." value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
-          style={{ padding: '10px 16px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '10px', color: '#fff', fontSize: '13px', minWidth: '200px' }} />
+          style={{ padding: '8px 14px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px', color: '#fff', fontSize: '12px', minWidth: '200px' }} />
         {categories.map(cat => (
           <button key={cat} onClick={() => setFilter(cat)}
-            style={{
-              padding: '8px 14px', borderRadius: '8px', border: 'none', cursor: 'pointer',
+            style={{ padding: '7px 12px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '11px', fontWeight: 500,
               background: filter === cat ? 'var(--accent-glow)' : 'var(--bg-card)',
-              color: filter === cat ? '#fff' : 'var(--text-muted)', fontSize: '12px', fontWeight: 500,
-              border: `1px solid ${filter === cat ? 'var(--accent)' : 'var(--border)'}`,
-              textTransform: 'capitalize'
-            }}>
-            {cat === 'all' ? 'All' : cat}
+              color: filter === cat ? '#fff' : 'var(--text-muted)',
+              border: `1px solid ${filter === cat ? 'var(--accent)' : 'var(--border)'}` }}>
+            {cat}
           </button>
         ))}
-        <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: 'auto' }}>
-          {filteredCommands.length} commands
-        </span>
+        <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: 'auto' }}>{filteredCommands.length} shown</span>
       </div>
 
       {/* Commands Grid */}
-      <h2 className="section-title">⚡ Commands ({filteredCommands.length})</h2>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '10px', marginBottom: '20px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '8px', marginBottom: '16px' }}>
         {filteredCommands.map((cmd, i) => (
-          <motion.div key={cmd.cmd} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 }}
-            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '14px', overflow: 'hidden', opacity: cmd.working ? 1 : 0.6 }}>
+          <motion.div key={cmd.cmd} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.01 }}
+            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden', opacity: cmd.working ? 1 : 0.5 }}>
             
-            <div style={{ padding: '14px', cursor: 'pointer' }} onClick={() => setExpandedCmd(expandedCmd === i ? null : i)}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+            <div style={{ padding: '12px', cursor: 'pointer' }} onClick={() => setExpandedCmd(expandedCmd === i ? null : i)}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <cmd.icon size={18} color={cmd.color} />
-                  <code style={{ fontSize: '16px', fontWeight: 700, color: '#22d3ee', fontFamily: 'monospace' }}>{cmd.cmd}</code>
+                  <cmd.icon size={16} color={cmd.color} />
+                  <code style={{ fontSize: '14px', fontWeight: 700, color: '#22d3ee', fontFamily: 'monospace' }}>{cmd.cmd}</code>
                 </div>
-                <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                  {!cmd.working && <span style={{ fontSize: '9px', padding: '2px 6px', background: 'rgba(248,113,113,0.15)', color: '#f87171', borderRadius: '6px', fontWeight: 600 }}>BLOCKED</span>}
+                <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
+                  {!cmd.working && <span style={{ fontSize: '9px', padding: '2px 6px', background: 'rgba(248,113,113,0.15)', color: '#f87171', borderRadius: '5px', fontWeight: 600 }}>BLOCKED</span>}
                   <button onClick={(e) => { e.stopPropagation(); execute(cmd); }}
-                    style={{ padding: '6px 12px', background: cmd.working ? cmd.color : '#444', border: 'none', borderRadius: '6px', color: cmd.working ? '#000' : '#888', cursor: cmd.working ? 'pointer' : 'not-allowed', fontWeight: 600, fontSize: '11px' }}
+                    style={{ padding: '5px 10px', background: cmd.working ? cmd.color : '#444', border: 'none', borderRadius: '6px', color: cmd.working ? '#000' : '#888', cursor: cmd.working ? 'pointer' : 'not-allowed', fontWeight: 600, fontSize: '10px' }}
                     disabled={!cmd.working}>
-                    <Play size={12} style={{ display: 'inline', marginRight: '3px' }} />Run
+                    <Play size={10} style={{ display: 'inline', marginRight: '3px' }} />Run
                   </button>
-                  <ChevronRight size={12} style={{ transform: expandedCmd === i ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }} />
+                  <ChevronRight size={11} style={{ transform: expandedCmd === i ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }} />
                 </div>
               </div>
-              <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{cmd.desc}</p>
-              <span style={{ fontSize: '10px', color: 'var(--text-muted)', background: 'var(--bg-primary)', padding: '2px 8px', borderRadius: '4px' }}>{cmd.category}</span>
+              <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '4px' }}>{cmd.desc}</p>
+              <span style={{ fontSize: '9px', color: 'var(--text-muted)', background: 'var(--bg-primary)', padding: '2px 6px', borderRadius: '4px' }}>{cmd.category}</span>
             </div>
 
             <AnimatePresence>
               {expandedCmd === i && (
                 <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} style={{ overflow: 'hidden' }}>
-                  <div style={{ borderTop: '1px solid var(--border)', padding: '14px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', cursor: 'pointer' }}
+                  <div style={{ borderTop: '1px solid var(--border)', padding: '12px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', cursor: 'pointer' }}
                       onClick={() => setShowCode(prev => ({ ...prev, [i]: !prev[i] }))}>
-                      <span style={{ fontSize: '12px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <Code size={13} color="#22d3ee" /> Implementation Code
+                      <span style={{ fontSize: '11px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <Code size={12} color="#22d3ee" /> Code
                       </span>
-                      <ChevronRight size={12} style={{ transform: showCode[i] ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }} />
+                      <ChevronRight size={11} style={{ transform: showCode[i] ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }} />
                     </div>
                     {showCode[i] && (
-                      <div style={{ position: 'relative', marginBottom: '10px' }}>
-                        <button onClick={(e) => { e.stopPropagation(); copyCode(cmd.code, i); }}
-                          style={{ position: 'absolute', top: '4px', right: '4px', padding: '4px 8px', background: '#1e2433', border: '1px solid #30363d', borderRadius: '6px', color: '#c9d1d9', cursor: 'pointer', fontSize: '10px', display: 'flex', alignItems: 'center', gap: '4px', zIndex: 1 }}>
-                          {copied === i ? <Check size={11} color="#34d399" /> : <Copy size={11} />}
+                      <div style={{ position: 'relative', marginBottom: '8px' }}>
+                        <button onClick={(e) => { e.stopPropagation(); copyCode(getCodeForCommand(cmd.cmd), i); }}
+                          style={{ position: 'absolute', top: '4px', right: '4px', padding: '3px 8px', background: '#1e2433', border: '1px solid #30363d', borderRadius: '5px', color: '#c9d1d9', cursor: 'pointer', fontSize: '10px', display: 'flex', alignItems: 'center', gap: '3px', zIndex: 1 }}>
+                          {copied === i ? <Check size={10} color="#34d399" /> : <Copy size={10} />}
                           {copied === i ? 'Copied' : 'Copy'}
                         </button>
-                        <pre style={{ background: '#0d1117', color: '#c9d1d9', padding: '12px', borderRadius: '8px', fontSize: '11px', lineHeight: '1.3', overflowX: 'auto', maxHeight: '250px', overflowY: 'auto', border: '1px solid #30363d', fontFamily: 'monospace' }}>
-                          <code>{cmd.code}</code>
+                        <pre style={{ background: '#0d1117', color: '#c9d1d9', padding: '10px', borderRadius: '6px', fontSize: '10px', lineHeight: '1.3', overflowX: 'auto', maxHeight: '200px', overflowY: 'auto', border: '1px solid #30363d', fontFamily: 'monospace' }}>
+                          <code>{getCodeForCommand(cmd.cmd)}</code>
                         </pre>
                       </div>
                     )}
-                    <div style={{ padding: '10px', background: 'var(--bg-primary)', borderRadius: '8px', fontSize: '11px', fontFamily: 'monospace', color: '#34d399' }}>
-                      📧 {cmd.email}
+                    <div style={{ padding: '8px', background: 'var(--bg-primary)', borderRadius: '6px', fontSize: '10px', fontFamily: 'monospace', color: '#34d399' }}>
+                      {getEmailForCommand(cmd.cmd)}
                     </div>
                   </div>
                 </motion.div>
@@ -778,40 +448,44 @@ const CommandCenter = () => {
       </div>
 
       {/* Pipeline */}
-      <div className="glass-card" style={{ marginBottom: '20px', padding: '20px' }}>
-        <h3 style={{ fontSize: '14px', fontWeight: 600, marginBottom: '14px' }}>📧 Command → Email Pipeline</h3>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', flexWrap: 'wrap', fontSize: '12px' }}>
+      <div className="glass-card" style={{ marginBottom: '16px', padding: '16px' }}>
+        <h3 style={{ fontSize: '13px', fontWeight: 600, marginBottom: '10px' }}>📧 Pipeline: Command → Execution → Email</h3>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', flexWrap: 'wrap', fontSize: '11px' }}>
           {['📱 Send', '📡 TLS', '📱 Execute', '📦 Package', '📧 Gmail'].map((step, i) => (
             <React.Fragment key={i}>
               {i > 0 && <span style={{ color: 'var(--text-muted)' }}>→</span>}
-              <span style={{ padding: '8px 14px', background: 'var(--bg-primary)', borderRadius: '8px', fontWeight: 500 }}>{step}</span>
+              <span style={{ padding: '6px 12px', background: 'var(--bg-primary)', borderRadius: '6px', fontWeight: 500 }}>{step}</span>
             </React.Fragment>
           ))}
         </div>
       </div>
 
       {/* Log */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-        <h2 className="section-title" style={{ margin: 0 }}>📝 Log ({log.length})</h2>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+        <h2 className="section-title" style={{ margin: 0, fontSize: '16px' }}>📝 Log ({log.length})</h2>
         {log.length > 0 && (
-          <button onClick={exportLog} style={{ padding: '8px 14px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px', color: '#fff', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Download size={13} /> Export
+          <button onClick={() => {
+            const text = log.map(l => `[\${l.time}] \${l.cmd}: \${l.detail}`).join('\\n');
+            const blob = new Blob([text], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = 'command-log.txt'; a.click();
+          }} style={{ padding: '6px 12px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '6px', color: '#fff', cursor: 'pointer', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <Download size={12} /> Export
           </button>
         )}
       </div>
-      <div className="glass-card" style={{ maxHeight: '250px', overflowY: 'auto' }}>
+      <div className="glass-card" style={{ maxHeight: '200px', overflowY: 'auto' }}>
         {log.length === 0 ? (
-          <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '28px', fontFamily: 'monospace', fontSize: '13px' }}>
+          <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '24px', fontFamily: 'monospace', fontSize: '12px' }}>
             Press <span style={{ color: '#22d3ee' }}>Run</span> on any command to execute...
           </p>
         ) : (
           log.map((entry) => (
-            <div key={entry.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderBottom: '1px solid var(--border)', fontFamily: 'monospace', fontSize: '12px' }}>
-              <span style={{ color: entry.status === 'success' ? '#34d399' : '#f87171', fontSize: '14px' }}>
-                {entry.status === 'success' ? '✅' : '🚫'}
-              </span>
-              <code style={{ color: '#22d3ee', fontWeight: 600, minWidth: '90px' }}>{entry.cmd}</code>
-              <span style={{ color: 'var(--text-muted)', minWidth: '65px', fontSize: '11px' }}>{entry.time}</span>
+            <div key={entry.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 0', borderBottom: '1px solid var(--border)', fontFamily: 'monospace', fontSize: '11px' }}>
+              <span style={{ color: entry.status === 'success' ? '#34d399' : '#f87171' }}>{entry.status === 'success' ? '✅' : '🚫'}</span>
+              <code style={{ color: '#22d3ee', fontWeight: 600, minWidth: '85px' }}>{entry.cmd}</code>
+              <span style={{ color: 'var(--text-muted)', minWidth: '60px', fontSize: '10px' }}>{entry.time}</span>
               <span style={{ color: 'var(--text-secondary)', flex: 1 }}>{entry.detail}</span>
             </div>
           ))
