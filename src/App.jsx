@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
-import { Shield, Activity, Zap, AlertTriangle, Eye, Menu, X, Package, Play, Sun, Moon } from 'lucide-react';
+import { Shield, Play, Package, Zap, Eye, AlertTriangle, Menu, X, Sun, Moon, Lightbulb, ArrowLeftRight } from 'lucide-react';
 import { useTheme } from './context/ThemeContext';
 import Dashboard from './pages/Dashboard';
-import CommandCenter from './pages/CommandCenter';
-import Modules from './pages/Modules';
-import Android15 from './pages/Android15';
 import TheftSimulator from './pages/TheftSimulator';
+import Modules from './pages/Modules';
+import CommandCenter from './pages/CommandCenter';
 import EvidenceFlow from './pages/EvidenceFlow';
+import Android15 from './pages/Android15';
+import Android15Bypass from './pages/Android15Bypass';
+import ReverseConnection from './pages/ReverseConnection';
 import './App.css';
 
 function App() {
@@ -22,7 +24,9 @@ function App() {
     { path: '/modules', icon: Package, label: 'Modules', color: '#a78bfa' },
     { path: '/command', icon: Zap, label: 'Commands', color: '#fb923c' },
     { path: '/flow', icon: Eye, label: 'Evidence Flow', color: '#34d399' },
-    { path: '/android15', icon: AlertTriangle, label: 'Android 15', color: '#fbbf24' },
+    { path: '/reverse', icon: ArrowLeftRight, label: 'Reverse Connect', color: '#22d3ee' },
+    { path: '/bypass', icon: Lightbulb, label: 'Bypass', color: '#fbbf24' },
+    { path: '/android15', icon: AlertTriangle, label: 'Restrictions', color: '#f87171' },
   ];
 
   return (
@@ -30,7 +34,6 @@ function App() {
       <button className="mobile-menu-btn" onClick={() => setSidebarOpen(!sidebarOpen)}>
         {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
       </button>
-
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
           <Shield size={32} className="logo-icon" />
@@ -38,11 +41,8 @@ function App() {
         </div>
         <nav className="sidebar-nav">
           {navItems.map((item) => (
-            <button
-              key={item.path}
-              className={`nav-item ${location.pathname === item.path ? 'active' : ''}`}
-              onClick={() => { navigate(item.path); setSidebarOpen(false); }}
-            >
+            <button key={item.path} className={`nav-item ${location.pathname === item.path ? 'active' : ''}`}
+              onClick={() => { navigate(item.path); setSidebarOpen(false); }}>
               <item.icon size={20} color={item.color} />
               <span>{item.label}</span>
             </button>
@@ -55,9 +55,7 @@ function App() {
           </button>
         </div>
       </aside>
-
       {sidebarOpen && <div className="overlay" onClick={() => setSidebarOpen(false)} />}
-
       <main className="main-area">
         <Routes>
           <Route path="/" element={<Dashboard />} />
@@ -65,11 +63,12 @@ function App() {
           <Route path="/modules" element={<Modules />} />
           <Route path="/command" element={<CommandCenter />} />
           <Route path="/flow" element={<EvidenceFlow />} />
+          <Route path="/reverse" element={<ReverseConnection />} />
+          <Route path="/bypass" element={<Android15Bypass />} />
           <Route path="/android15" element={<Android15 />} />
         </Routes>
       </main>
     </div>
   );
 }
-
 export default App;
