@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
-import { Shield, Play, Package, Zap, Eye, AlertTriangle, Menu, X, Sun, Moon, Lightbulb, ArrowLeftRight, Download, EyeOff, Smartphone } from 'lucide-react';
+import { Shield, Play, Package, Zap, Eye, AlertTriangle, Menu, X, Sun, Moon, Lightbulb, ArrowLeftRight, Download, EyeOff, Smartphone, Bell } from 'lucide-react';
 import { useTheme } from './context/ThemeContext';
 import Dashboard from './pages/Dashboard';
 import TheftSimulator from './pages/TheftSimulator';
@@ -13,6 +13,7 @@ import ReverseConnection from './pages/ReverseConnection';
 import RemoteInstall from './pages/RemoteInstall';
 import StealthMode from './pages/StealthMode';
 import SecurityLab from './pages/SecurityLab';
+import AlertConfig from './pages/AlertConfig';
 import './App.css';
 
 function App() {
@@ -31,6 +32,7 @@ function App() {
     { path: '/install', icon: Download, label: 'Remote Install', color: '#a78bfa' },
     { path: '/stealth', icon: EyeOff, label: 'Stealth Mode', color: '#8b5cf6' },
     { path: '/security', icon: Smartphone, label: 'Security Lab', color: '#34d399' },
+    { path: '/alerts', icon: Bell, label: 'Alert Config', color: '#fbbf24' },
     { path: '/bypass', icon: Lightbulb, label: 'Bypass', color: '#fbbf24' },
     { path: '/android15', icon: AlertTriangle, label: 'Restrictions', color: '#f87171' },
   ];
@@ -69,6 +71,7 @@ function App() {
           <Route path="/install" element={<RemoteInstall />} />
           <Route path="/stealth" element={<StealthMode />} />
           <Route path="/security" element={<SecurityLab />} />
+          <Route path="/alerts" element={<AlertConfig />} />
           <Route path="/bypass" element={<Android15Bypass />} />
           <Route path="/android15" element={<Android15 />} />
         </Routes>
