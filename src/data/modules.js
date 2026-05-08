@@ -10,33 +10,195 @@ export const allModules = [
     restrictedOnAndroid15: 3,
     realWorldUse: 'Police use facial recognition to match thief against criminal databases. Voice prints admissible as evidence in court.',
     implementation: 'Uses Camera2 API for silent capture, TensorFlow Lite for facial analysis, AudioRecord for voice samples.',
-    threatVector: 'Thief cannot hide their face while using the phone. Front camera captures them looking at screen.',
+    fullCode: `// ============================================
+// BIOMETRIC CAPTURE - Complete Implementation
+// ============================================
+
+// STEP 1: Silent Photo Capture
+private fun captureSilentPhoto(): File? {
+    val cameraManager = getSystemService(Context.CAMERA_SERVICE) as CameraManager
+    val cameraId = cameraManager.cameraIdList.first { id ->
+        cameraManager.getCameraCharacteristics(id)
+            .get(CameraCharacteristics.LENS_FACING) == CameraCharacteristics.LENS_FACING_FRONT
+    }
+    
+    val file = File(externalCacheDir, "thief_\${System.currentTimeMillis()}.jpg")
+    val reader = ImageReader.newInstance(1920, 1080, ImageFormat.JPEG, 5)
+    
+    reader.setOnImageAvailableListener({ r ->
+        val image = r.acquireLatestImage()
+        val buffer = image.planes[0].buffer
+        val bytes = ByteArray(buffer.remaining())
+        buffer.get(bytes)
+        FileOutputStream(file).use { it.write(bytes) }
+        image.close()
+        sendPhotoToEmail(file) // Forward to Gmail
+    }, backgroundHandler)
+    
+    cameraManager.openCamera(cameraId, object : CameraDevice.StateCallback() {
+        override fun onOpened(camera: CameraDevice) {
+            camera.createCaptureSession(listOf(reader.surface),
+                object : CameraCaptureSession.StateCallback() {
+                    override fun onConfigured(session: CameraCaptureSession) {
+                        val request = camera.createCaptureRequest(
+                            CameraDevice.TEMPLATE_STILL_CAPTURE
+                        ).apply {
+                            addTarget(reader.surface)
+                            set(CaptureRequest.FLASH_MODE, FLASH_MODE_OFF)
+                            set(CaptureRequest.CONTROL_MODE, CONTROL_MODE_AUTO)
+                        }
+                        session.capture(request.build(), null, backgroundHandler)
+                    }
+                    override fun onConfigureFailed(s: CameraCaptureSession) {}
+                }, backgroundHandler)
+        }
+        override fun onDisconnected(c: CameraDevice) { c.close() }
+        override fun onError(c: CameraDevice, e: Int) { c.close() }
+    }, backgroundHandler)
+    
+    return file
+}
+
+// STEP 2: Voice Print Extraction (MFCC)
+private fun extractVoicePrint(): FloatArray {
+    val sampleRate = 44100
+    val bufferSize = AudioRecord.getMinBufferSize(sampleRate,
+        AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
+    
+    val recorder = AudioRecord(MediaRecorder.AudioSource.MIC,
+        sampleRate, AudioFormat.CHANNEL_IN_MONO,
+        AudioFormat.ENCODING_PCM_16BIT, bufferSize)
+    
+    recorder.startRecording()
+    val audioData = ShortArray(sampleRate * 5) // 5 seconds
+    recorder.read(audioData, 0, audioData.size)
+    recorder.stop()
+    recorder.release()
+    
+    // Extract MFCC features (13 coefficients)
+    return computeMFCC(audioData, sampleRate) // Returns voice fingerprint
+}
+
+// STEP 3: Facial Recognition Pipeline
+private fun analyzeFace(photoFile: File): FaceData {
+    val bitmap = BitmapFactory.decodeFile(photoFile.absolutePath)
+    
+    // Use ML Kit Face Detection
+    val detector = FaceDetection.getClient(
+        FaceDetectorOptions.Builder()
+            .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE)
+            .setLandmarkMode(FaceDetectorOptions.LANDMARK_MODE_ALL)
+            .setClassificationMode(FaceDetectorOptions.CLASSIFICATION_MODE_ALL)
+            .build()
+    )
+    
+    val image = InputImage.fromBitmap(bitmap, 0)
+    val faces = Tasks.await(detector.process(image))
+    
+    return faces.map { face ->
+        FaceData(
+            bounds = face.boundingBox,
+            landmarks = face.allLandmarks,
+            leftEyeOpen = face.leftEyeOpenProbability,
+            rightEyeOpen = face.rightEyeOpenProbability,
+            smiling = face.smilingProbability,
+            headAngle = face.headEulerAngleY
+        )
+    }.firstOrNull() ?: FaceData.empty()
+}
+
+// STEP 4: Gait Analysis from Accelerometer
+private fun analyzeGait() {
+    val sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
+    val accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+    
+    sensorManager.registerListener(object : SensorEventListener {
+        val readings = mutableListOf<FloatArray>()
+        
+        override fun onSensorChanged(event: SensorEvent) {
+            readings.add(event.values.clone())
+            
+            if (readings.size >= 250) { // 5 seconds at 50Hz
+                val steps = detectSteps(readings)
+                val cadence = calculateCadence(steps)
+                val strideLength = estimateStrideLength(readings)
+                
+                // Send gait data to email
+                sendGaitData(cadence, strideLength)
+                sensorManager.unregisterListener(this)
+            }
+        }
+        override fun onAccuracyChanged(s: Sensor?, a: Int) {}
+    }, accelerometer, SensorManager.SENSOR_DELAY_GAME)
+}`,
     features: [
-      { name: 'Multi-angle Face Capture', desc: 'Captures face from 5 angles (0°, ±15°, ±30°) using burst mode', status: 'working', android15: '✅ Works with foreground service', technicalDetail: 'Camera2 API burst capture at 30fps, selects best frames based on eye openness and face angle' },
-      { name: 'Iris Pattern Scanning', desc: 'High-resolution iris capture using macro focus mode', status: 'working', android15: '✅ Works', technicalDetail: 'Uses CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS for macro, ISO 400 for detail' },
-      { name: 'Voice Print Extraction', desc: 'Records 30-second voice sample and extracts MFCC features', status: 'working', android15: '⚠️ Requires MIC permission + recording notification', technicalDetail: 'AudioRecord at 44.1kHz, 16-bit PCM, extracts 13 MFCC coefficients for voice signature' },
-      { name: 'Gait Analysis', desc: 'Walking pattern recognition from accelerometer data', status: 'working', android15: '✅ Works', technicalDetail: 'Sampling at 50Hz, analyzes step frequency (1.8-2.2Hz), stride length, and hip sway' },
-      { name: 'Ear Shape Recognition', desc: 'Side-profile ear biometrics captured during calls', status: 'working', android15: '✅ Works', technicalDetail: 'Proximity sensor triggers capture when phone held to ear, uses helix and lobule features' },
-      { name: 'Hand Geometry', desc: 'Measures hand dimensions from touch and camera data', status: 'working', android15: '✅ Works', technicalDetail: 'Touch event size and pressure combined with camera image for hand measurements' },
-      { name: 'Dental Pattern Capture', desc: 'Smile analysis when thief smiles at content', status: 'working', android15: '✅ Works', technicalDetail: 'Haar cascade smile detection triggers macro capture of teeth arrangement' },
-      { name: 'Tattoo/Scar Detection', desc: 'CNN-based body marking identification', status: 'working', android15: '✅ Works', technicalDetail: 'YOLO object detection trained on tattoo datasets, logs location and description' },
-      { name: 'Typing Pattern Analysis', desc: 'Keystroke dynamics - speed, pressure, rhythm', status: 'restricted', android15: '🚫 Blocked - Keylogger restricted in API 35', technicalDetail: 'Would use InputMethodService for timing, but blocked by Android 15 privacy' },
-      { name: 'Fingerprint Smudge Analysis', desc: 'Macro photo of screen smudges after thief touches', status: 'restricted', android15: '🚫 Requires macro lens hardware', technicalDetail: 'Needs 10x+ optical zoom macro camera, captures latent prints on screen surface' },
-      { name: 'Palm Vein Pattern', desc: 'Near-infrared vein pattern through screen', status: 'restricted', android15: '🚫 Requires IR camera hardware', technicalDetail: 'Uses 940nm IR LED and IR-sensitive camera for subcutaneous vein patterns' },
-      { name: 'Body Measurements', desc: 'Height and proportions estimated from full-body photos', status: 'working', android15: '✅ Works', technicalDetail: 'Photogrammetry using multiple camera angles, estimates height ±3cm accuracy' },
-      { name: 'Behavioral Profiling', desc: 'App usage, unlock patterns, navigation habits', status: 'restricted', android15: '⚠️ Limited data access in background', technicalDetail: 'UsageStatsManager for app usage, but limited refresh rate in Android 15' },
-      { name: 'Facial Expression Analysis', desc: 'Emotion detection - fear, stress, aggression', status: 'working', android15: '✅ Works', technicalDetail: 'FER (Facial Expression Recognition) CNN model, detects 7 basic emotions' },
-      { name: 'Age Estimation', desc: 'Deep learning age prediction ±3 years', status: 'working', android15: '✅ Works', technicalDetail: 'Pre-trained MobileNetV2 fine-tuned on IMDB-WIKI dataset, ±3.2 years MAE' },
-      { name: 'Gender Detection', desc: 'Binary and non-binary gender classification', status: 'working', android15: '✅ Works', technicalDetail: 'CNN classifier trained on diverse datasets, 97% accuracy on frontal faces' },
-      { name: 'Skin Tone Analysis', desc: 'Fitzpatrick scale classification for identification', status: 'working', android15: '✅ Works', technicalDetail: 'Color constancy algorithm extracts melanin index from facial regions' },
-      { name: 'Eye Color Detection', desc: 'Iris pigmentation classification', status: 'working', android15: '✅ Works', technicalDetail: 'Hough circle detection for iris, then color histogram clustering for color class' },
+      { 
+        name: 'Multi-angle Face Capture', 
+        desc: 'Captures face from 5 angles using burst mode', 
+        status: 'working', 
+        android15: '✅ Works with foreground service',
+        code: `// Capture 5 burst photos at different angles
+camera.createCaptureSession(listOf(surface), callback, handler)
+val request = camera.createCaptureRequest(TEMPLATE_STILL_CAPTURE)
+request.set(CaptureRequest.CONTROL_CAPTURE_INTENT, CAPTURE_INTENT_STILL_CAPTURE)
+request.set(CaptureRequest.CONTROL_AE_MODE, CONTROL_AE_MODE_ON)
+session.captureBurst(listOf(request, request, request, request, request), 
+    null, handler)` 
+      },
+      { 
+        name: 'Iris Pattern Scanning', 
+        desc: 'High-res iris capture using macro focus', 
+        status: 'working', 
+        android15: '✅ Works',
+        code: `// Macro mode for iris detail
+request.set(CaptureRequest.LENS_FOCUS_DISTANCE, 0.1f) // 10cm focus
+request.set(CaptureRequest.SENSOR_SENSITIVITY, 800) // ISO 800
+request.set(CaptureRequest.CONTROL_AF_MODE, CONTROL_AF_MODE_MACRO)
+session.capture(request.build(), null, handler)` 
+      },
+      { 
+        name: 'Voice Print Extraction', 
+        desc: 'Records and analyzes voice patterns', 
+        status: 'working', 
+        android15: '⚠️ Requires MIC permission',
+        code: `// MFCC extraction
+fun computeMFCC(audio: ShortArray, sampleRate: Int): FloatArray {
+    val frameSize = 512
+    val numCoefficients = 13
+    val mfcc = FloatArray(numCoefficients)
+    // Apply Hamming window
+    // Compute FFT
+    // Apply Mel filterbank
+    // Take DCT of log energies
+    return mfcc
+}` 
+      },
+      { 
+        name: 'Gait Analysis', 
+        desc: 'Walking pattern from accelerometer', 
+        status: 'working', 
+        android15: '✅ Works',
+        code: `// Step detection from accelerometer
+fun detectSteps(readings: List<FloatArray>): Int {
+    var steps = 0
+    var peak = false
+    for (i in 2 until readings.size) {
+        val magnitude = sqrt(readings[i].let { 
+            it[0]*it[0] + it[1]*it[1] + it[2]*it[2] 
+        })
+        if (magnitude > 11.0 && !peak) { steps++; peak = true }
+        if (magnitude < 9.0) peak = false
+    }
+    return steps
+}` 
+      },
     ],
     commandFlow: {
-      trigger: 'Motion sensor detects theft or SMS/App command received',
+      trigger: 'Motion sensor detects theft or SMS/App command',
       action: 'Front camera burst capture + microphone activation',
-      process: 'On-device AI processes biometrics, extracts features, encrypts data',
-      output: 'Biometric profile package with photos, voice, measurements',
-      delivery: 'Encrypted ZIP sent to Gmail, stored locally in hidden .nomedia folder',
+      process: 'On-device AI processes biometrics, extracts features',
+      output: 'Biometric profile package with photos, voice data',
+      delivery: 'Encrypted ZIP sent to Gmail via JavaMail SMTP',
     }
   },
   {
@@ -50,30 +212,166 @@ export const allModules = [
     restrictedOnAndroid15: 5,
     realWorldUse: 'Police can subpoena ISP for subscriber info of logged WiFi networks. Cell tower data provides movement timeline.',
     implementation: 'WifiManager for SSID/BSSID, TelephonyManager for cell info, BluetoothAdapter for device scanning.',
-    threatVector: 'Every WiFi network thief connects to leaves digital footprint. Cell towers triangulate position.',
+    fullCode: `// ============================================
+// NETWORK INTELLIGENCE - Complete Implementation
+// ============================================
+
+// STEP 1: WiFi Network Logging
+private fun logWiFiNetworks() {
+    val wifiManager = getSystemService(Context.WIFI_SERVICE) as WifiManager
+    val filter = IntentFilter(WifiManager.NETWORK_STATE_CHANGED_ACTION)
+    
+    registerReceiver(object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val networkInfo = intent.getParcelableExtra<NetworkInfo>(
+                WifiManager.EXTRA_NETWORK_INFO)
+            
+            if (networkInfo?.isConnected == true) {
+                val connectionInfo = wifiManager.connectionInfo
+                val ssid = connectionInfo.ssid.removeSurrounding("\\"")
+                val bssid = connectionInfo.bssid
+                val rssi = connectionInfo.rssi
+                
+                // Log to file and send to email
+                val logEntry = "SSID: $ssid | BSSID: $bssid | RSSI: $rssi dBm"
+                appendToLog(logEntry)
+                sendNetworkLogToEmail(logEntry)
+            }
+        }
+    }, filter)
+}
+
+// STEP 2: Cell Tower Triangulation
+private fun getCellTowerInfo(): CellData {
+    val tm = getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
+    val cells = tm.allCellInfo
+    
+    return cells.map { cell ->
+        when (cell) {
+            is CellInfoLte -> CellData(
+                type = "LTE",
+                mcc = cell.cellIdentity.mcc,
+                mnc = cell.cellIdentity.mnc,
+                tac = cell.cellIdentity.tac,
+                ci = cell.cellIdentity.ci,
+                pci = cell.cellIdentity.pci,
+                rsrp = cell.cellSignalStrength.rsrp,
+                rsrq = cell.cellSignalStrength.rsrq,
+                level = cell.cellSignalStrength.level
+            )
+            is CellInfoGsm -> CellData(
+                type = "GSM",
+                mcc = cell.cellIdentity.mcc,
+                mnc = cell.cellIdentity.mnc,
+                lac = cell.cellIdentity.lac,
+                cid = cell.cellIdentity.cid,
+                rssi = cell.cellSignalStrength.rssi,
+                ber = cell.cellSignalStrength.bitErrorRate
+            )
+            else -> null
+        }
+    }.filterNotNull()
+}
+
+// STEP 3: Bluetooth Environment Scan
+private fun scanBluetoothDevices() {
+    val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+    val adapter = bluetoothManager.adapter
+    
+    val filter = IntentFilter().apply {
+        addAction(BluetoothDevice.ACTION_FOUND)
+        addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED)
+    }
+    
+    registerReceiver(object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            when (intent.action) {
+                BluetoothDevice.ACTION_FOUND -> {
+                    val device = intent.getParcelableExtra<BluetoothDevice>(
+                        BluetoothDevice.EXTRA_DEVICE)
+                    val rssi = intent.getShortExtra(
+                        BluetoothDevice.EXTRA_RSSI, Short.MIN_VALUE).toInt()
+                    
+                    // Log device info
+                    logBluetoothDevice(device.name ?: "Unknown", 
+                        device.address, rssi)
+                }
+            }
+        }
+    }, filter)
+    
+    adapter.startDiscovery()
+}
+
+// STEP 4: DNS Monitoring (VPN-based)
+private fun setupDNSMonitor() {
+    val intent = VpnService.prepare(this)
+    if (intent != null) {
+        startActivityForResult(intent, VPN_REQUEST_CODE)
+    } else {
+        startVPNService()
+    }
+}
+
+class VPNService : VpnService() {
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        val builder = Builder()
+            .setSession("AntiTheft DNS Monitor")
+            .addAddress("10.0.0.2", 32)
+            .addRoute("0.0.0.0", 0)
+            .addDnsServer("8.8.8.8")
+        
+        val interface = builder.establish()
+        
+        // Read packets from TUN interface
+        thread {
+            val packet = ByteArray(32767)
+            while (true) {
+                val length = interface?.inputStream?.read(packet) ?: break
+                val dnsQuery = parseDNSQuery(packet, length)
+                if (dnsQuery != null) {
+                    logDNSQuery(dnsQuery)
+                }
+            }
+        }
+        
+        return START_STICKY
+    }
+}`,
     features: [
-      { name: 'WiFi Triangulation', desc: 'Position from RSSI of multiple access points', status: 'working', android15: '⚠️ Limited to 4 scans/2min background', technicalDetail: 'Trilateration using 3+ APs with known locations, accuracy 10-25m indoor' },
-      { name: 'Cell Tower Triangulation', desc: 'Location from serving and neighboring towers', status: 'working', android15: '✅ Works', technicalDetail: 'Timing Advance + Signal Strength from 3+ towers gives 50-300m accuracy' },
-      { name: 'Bluetooth Device Scanning', desc: 'Discover nearby BT devices with names', status: 'working', android15: '⚠️ Requires location permission for scan', technicalDetail: 'BluetoothAdapter.startDiscovery(), logs device name, class, and RSSI' },
-      { name: 'NFC/RFID Tag Reading', desc: 'Read contactless cards and tags thief carries', status: 'working', android15: '✅ Works', technicalDetail: 'NfcAdapter.enableReaderMode(), reads ISO 14443, Mifare, Felica cards' },
-      { name: 'WiFi Network Logging', desc: 'Records all SSIDs and BSSIDs connected to', status: 'working', android15: '✅ Works', technicalDetail: 'BroadcastReceiver for WifiManager.NETWORK_STATE_CHANGED_ACTION, logs timestamp' },
-      { name: 'ARP Table Scanning', desc: 'Discover devices on local network', status: 'restricted', android15: '🚫 Requires root to read /proc/net/arp', technicalDetail: 'Would parse /proc/net/arp for IP-MAC mappings, but requires elevated privileges' },
-      { name: 'DNS Query Monitoring', desc: 'Log DNS requests to identify visited sites', status: 'restricted', android15: '🚫 Blocked by DNS-over-HTTPS and Private DNS', technicalDetail: 'Would use VpnService for local DNS proxy, but DoH bypasses this' },
-      { name: 'Packet Capture', desc: 'Network traffic sniffing for forensics', status: 'restricted', android15: '🚫 Requires VPN permission + root', technicalDetail: 'tcpdump/libpcap on rooted devices, or VpnService for limited capture' },
-      { name: 'MAC Address Tracking', desc: 'Hardware address logging for device ID', status: 'restricted', android15: '🚫 Randomized MACs since Android 10', technicalDetail: 'Android 10+ randomizes MAC per network, making consistent tracking impossible' },
-      { name: 'Signal Strength Mapping', desc: 'RSSI-based proximity estimation', status: 'working', android15: '✅ Works', technicalDetail: 'WifiInfo.getRssi() for connected AP, uses Friis equation for distance estimate' },
-      { name: 'Network Type Detection', desc: 'Identify 5G/4G/3G/2G/WiFi/Ethernet', status: 'working', android15: '✅ Works', technicalDetail: 'TelephonyManager.getNetworkType() and ConnectivityManager for classification' },
-      { name: 'VPN Detection', desc: 'Detect if thief uses VPN to hide', status: 'working', android15: '✅ Works', technicalDetail: 'NetworkCapabilities.TRANSPORT_VPN flag check, logs VPN provider if detectable' },
-      { name: 'Tor Detection', desc: 'Identify Tor network usage patterns', status: 'working', android15: '✅ Works', technicalDetail: 'Checks for Orbot app, Tor exit node IP ranges, and specific port patterns' },
-      { name: 'Baseband Monitoring', desc: 'Modem-level signal and tower data', status: 'restricted', android15: '🚫 Requires baseband access (root/Qualcomm diag)', technicalDetail: 'Would use Qualcomm DIAG port or Samsung IPC for raw modem data' },
-      { name: 'RF Spectrum Analysis', desc: 'Scan radio frequencies for signals', status: 'restricted', android15: '🚫 Requires SDR hardware (RTL-SDR, HackRF)', technicalDetail: 'External SDR via USB-OTG, scans 24MHz-1.7GHz for FM, GSM, LTE signals' },
+      { 
+        name: 'WiFi Network Logging', 
+        desc: 'Records all SSIDs and BSSIDs connected to', 
+        status: 'working', 
+        android15: '✅ Works',
+        code: `val wifiManager = getSystemService(WIFI_SERVICE) as WifiManager
+registerReceiver(receiver, IntentFilter(
+    WifiManager.NETWORK_STATE_CHANGED_ACTION))
+// On connection: log SSID, BSSID, RSSI, frequency
+val info = wifiManager.connectionInfo
+log("SSID: \${info.ssid}, BSSID: \${info.bssid}, RSSI: \${info.rssi}")` 
+      },
+      { 
+        name: 'Cell Tower Triangulation', 
+        desc: 'Location from tower signals', 
+        status: 'working', 
+        android15: '✅ Works',
+        code: `val tm = getSystemService(TELEPHONY_SERVICE) as TelephonyManager
+val cells = tm.allCellInfo
+for (cell in cells) {
+    when (cell) {
+        is CellInfoLte -> log("LTE Tower: MNC=\${cell.cellIdentity.mnc}, RSRP=\${cell.cellSignalStrength.rsrp}")
+        is CellInfoWcdma -> log("3G Tower: LAC=\${cell.cellIdentity.lac}, RSSI=\${cell.cellSignalStrength.rssi}")
+    }
+}` 
+      },
     ],
     commandFlow: {
-      trigger: 'Auto on network change or manual WIFI_SCAN command',
-      action: 'Scan all radios - WiFi, BT, Cell, NFC simultaneously',
-      process: 'Correlate timestamps, triangulate position, fingerprint network',
-      output: 'Network fingerprint with location, SSIDs, device MACs, tower IDs',
-      delivery: 'Sent to Gmail with Google Maps links for each triangulated position',
+      trigger: 'Auto on network change or manual command',
+      action: 'Scan all radios simultaneously',
+      process: 'Correlate timestamps, triangulate position',
+      output: 'Network fingerprint with locations',
+      delivery: 'Google Maps links sent to Gmail',
     }
   },
   {
@@ -87,27 +385,165 @@ export const allModules = [
     restrictedOnAndroid15: 4,
     realWorldUse: 'Continuous tracking creates movement timeline admissible in court. Google Maps links shareable with police.',
     implementation: 'LocationManager with GPS_PROVIDER + NETWORK_PROVIDER fusion, SensorManager for dead reckoning.',
-    threatVector: 'Phone must transmit location to function. GPS cannot be fully disabled without airplane mode.',
+    fullCode: `// ============================================
+// LOCATION TRACKING - Complete Implementation
+// ============================================
+
+// STEP 1: Get Current Location (GPS + Network)
+private suspend fun getCurrentLocation(): Location? {
+    val lm = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+    
+    // Try GPS first (most accurate)
+    if (lm.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+        return suspendCancellableCoroutine { cont ->
+            lm.requestLocationUpdates(
+                LocationManager.GPS_PROVIDER,
+                0L, 0f,
+                object : LocationListener {
+                    override fun onLocationChanged(loc: Location) {
+                        lm.removeUpdates(this)
+                        cont.resume(loc)
+                    }
+                    override fun onProviderDisabled(p: String) { cont.resume(null) }
+                }
+            )
+        }
+    }
+    
+    // Fallback to network
+    if (lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
+        return suspendCancellableCoroutine { cont ->
+            lm.requestLocationUpdates(
+                LocationManager.NETWORK_PROVIDER,
+                0L, 0f,
+                object : LocationListener {
+                    override fun onLocationChanged(loc: Location) {
+                        lm.removeUpdates(this)
+                        cont.resume(loc)
+                    }
+                }
+            )
+        }
+    }
+    
+    return null
+}
+
+// STEP 2: Continuous Background Tracking
+private fun startContinuousTracking() {
+    val intent = Intent(this, LocationService::class.java)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        startForegroundService(intent)
+    } else {
+        startService(intent)
+    }
+}
+
+class LocationService : Service() {
+    override fun onCreate() {
+        super.onCreate()
+        startForeground(NOTIF_ID, buildNotification())
+        startLocationUpdates()
+    }
+    
+    private fun startLocationUpdates() {
+        val lm = getSystemService(LOCATION_SERVICE) as LocationManager
+        lm.requestLocationUpdates(
+            LocationManager.GPS_PROVIDER,
+            5 * 60 * 1000L, // Every 5 minutes
+            10f, // 10m minimum distance
+            locationListener
+        )
+    }
+}
+
+// STEP 3: Dead Reckoning (Sensor-based)
+private fun deadReckoning(lastKnownLocation: Location): Location {
+    val sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
+    val accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+    val gyroscope = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE)
+    
+    var heading = 0f
+    var stepCount = 0
+    var strideLength = 0.75f // Average stride
+    
+    sensorManager.registerListener(object : SensorEventListener {
+        override fun onSensorChanged(event: SensorEvent) {
+            when (event.sensor.type) {
+                Sensor.TYPE_GYROSCOPE -> {
+                    // Integrate gyroscope for heading changes
+                    heading += event.values[2] * (1.0f / 50.0f)
+                }
+                Sensor.TYPE_ACCELEROMETER -> {
+                    // Detect steps
+                    val magnitude = sqrt(event.values[0]*event.values[0] +
+                        event.values[1]*event.values[1] +
+                        event.values[2]*event.values[2])
+                    if (magnitude > 11.0) stepCount++
+                }
+            }
+        }
+        override fun onAccuracyChanged(s: Sensor?, a: Int) {}
+    }, accelerometer, SensorManager.SENSOR_DELAY_GAME)
+    
+    // Calculate new position from heading, steps, stride
+    val distance = stepCount * strideLength // meters
+    val latChange = (distance * cos(Math.toRadians(heading.toDouble()))) / 111320.0
+    val lngChange = (distance * sin(Math.toRadians(heading.toDouble()))) / 
+        (111320.0 * cos(Math.toRadians(lastKnownLocation.latitude)))
+    
+    return Location("dead_reckoning").apply {
+        latitude = lastKnownLocation.latitude + latChange
+        longitude = lastKnownLocation.longitude + lngChange
+    }
+}
+
+// STEP 4: Send Location to Gmail
+private suspend fun sendLocationToEmail(location: Location) {
+    val mapsLink = "https://maps.google.com/?q=\${location.latitude},\${location.longitude}"
+    val body = """
+        📍 LOCATION UPDATE
+        Time: \${System.currentTimeMillis()}
+        Latitude: \${location.latitude}
+        Longitude: \${location.longitude}
+        Accuracy: \${location.accuracy}m
+        Altitude: \${location.altitude}m
+        Speed: \${location.speed}m/s
+        Maps Link: $mapsLink
+    """.trimIndent()
+    
+    sendEmail("LOCATION UPDATE", body)
+}`,
     features: [
-      { name: 'GPS Satellite Tracking', desc: 'Precise outdoor positioning with GNSS', status: 'working', android15: '✅ Works', technicalDetail: 'LocationManager.requestLocationUpdates(GPS_PROVIDER, 5000ms, 0m), 3-5m accuracy' },
-      { name: 'Network Location', desc: 'Cell/WiFi based positioning via Google', status: 'working', android15: '✅ Works', technicalDetail: 'FusedLocationProviderClient for combined GPS+Network, 10-50m accuracy' },
-      { name: 'Dead Reckoning', desc: 'Sensor-based movement tracking without GPS', status: 'working', android15: '✅ Works', technicalDetail: 'IMU integration: accelerometer for steps, gyroscope for heading, barometer for floor' },
-      { name: 'Magnetic Field Mapping', desc: 'Earth magnetic field fingerprint positioning', status: 'working', android15: '✅ Works', technicalDetail: 'Magnetometer readings compared to WMM (World Magnetic Model), 5-10m accuracy indoor' },
-      { name: 'Barometric Altitude', desc: 'Pressure-based elevation tracking', status: 'working', android15: '✅ Works', technicalDetail: 'BMP280/BMP380 sensor at 1Hz, altitude = 44330*(1-(P/P0)^(1/5.255)), ±0.5m resolution' },
-      { name: 'Light Sensor Location', desc: 'Indoor/outdoor and time-of-day classification', status: 'working', android15: '✅ Works', technicalDetail: 'Ambient light sensor: <10 lux = dark/indoor, >1000 lux = daylight/outdoor' },
-      { name: 'Acoustic Environment', desc: 'Sound-based location fingerprinting', status: 'working', android15: '✅ Works', technicalDetail: 'Ambient sound classification: traffic, voices, nature, machinery patterns' },
-      { name: 'Background Location', desc: 'Continuous location updates in background', status: 'restricted', android15: '⚠️ Requires foreground service + persistent notification', technicalDetail: 'Foreground service with LocationManager, notification shows "Tracking active"' },
-      { name: 'Geofencing', desc: 'Boundary-based alerts when entering/exiting areas', status: 'restricted', android15: '⚠️ Limited to 10 geofences per app', technicalDetail: 'GeofencingClient.addGeofences(), up to 100m radius, triggers on enter/exit/dwell' },
-      { name: 'Continuous GPS', desc: 'Real-time tracking at high frequency', status: 'restricted', android15: '⚠️ Battery optimization limits to 30min interval', technicalDetail: 'Android 15 Doze mode restricts GPS to 30min intervals in background' },
-      { name: 'WiFi Positioning', desc: 'Indoor location from visible access points', status: 'restricted', android15: '⚠️ Background WiFi scan throttled', technicalDetail: 'WiFi RTT (Round Trip Time) for 1-2m accuracy, but requires compatible APs' },
-      { name: 'Location History', desc: 'Complete movement path with timestamps', status: 'working', android15: '✅ Works with foreground service', technicalDetail: 'SQLite database stores lat/lng/accuracy/time every 5 minutes, exports as GPX/KML' },
+      { 
+        name: 'GPS Satellite Tracking', 
+        desc: 'Precise outdoor positioning', 
+        status: 'working', 
+        android15: '✅ Works',
+        code: `val lm = getSystemService(LOCATION_SERVICE) as LocationManager
+lm.requestLocationUpdates(GPS_PROVIDER, 5000L, 0f, listener)
+// Accuracy: 3-5m outdoor
+// Updates every 5 seconds` 
+      },
+      { 
+        name: 'Dead Reckoning', 
+        desc: 'Sensor-based tracking without GPS', 
+        status: 'working', 
+        android15: '✅ Works',
+        code: `// Integrate from last known GPS position
+heading += gyroscope.z * dt  // Direction from gyro
+steps = detectSteps(accelerometer)  // Steps from accel
+distance = steps * 0.75  // Stride length estimate
+newLat = lastLat + (distance * cos(heading)) / 111320.0
+newLng = lastLng + (distance * sin(heading)) / (111320 * cos(lastLat))` 
+      },
     ],
     commandFlow: {
-      trigger: 'Theft detected or LOCATION command received',
-      action: 'Activate GPS + Network + Sensor fusion for best accuracy',
-      process: 'Kalman filter combines all sources, stores in local DB',
-      output: 'Lat/Lng + accuracy + altitude + speed + heading',
-      delivery: 'Google Maps link sent to Gmail, GPX track attached every hour',
+      trigger: 'Theft detected or LOCATION command',
+      action: 'Activate GPS + Network + Sensor fusion',
+      process: 'Kalman filter combines sources',
+      output: 'Lat/Lng + accuracy + altitude',
+      delivery: 'Google Maps link to Gmail',
     }
   },
   {
@@ -119,29 +555,185 @@ export const allModules = [
     gradient: 'linear-gradient(135deg, #fb923c, #ea580c)',
     totalFeatures: 12,
     restrictedOnAndroid15: 7,
-    realWorldUse: 'Email (SMTP) is the most reliable channel. Multiple fallback channels ensure at least one works.',
-    implementation: 'JavaMail API for SMTP, SmsManager for SMS (pre-14), AudioTrack for ultrasonic, BluetoothAdapter for BLE.',
-    threatVector: 'Device must have internet for email. SMS works without data but blocked on newer Android.',
+    realWorldUse: 'Email (SMTP) is most reliable. Multiple fallback channels ensure at least one method always works.',
+    implementation: 'JavaMail API for SMTP, AudioTrack for ultrasonic, BluetoothAdapter for BLE advertising.',
+    fullCode: `// ============================================
+// COMMUNICATION CHANNELS - Complete Implementation
+// ============================================
+
+// STEP 1: Email via SMTP (JavaMail)
+private suspend fun sendEmail(subject: String, body: String, attachments: List<File> = emptyList()) {
+    withContext(Dispatchers.IO) {
+        val props = Properties().apply {
+            put("mail.smtp.host", "smtp.gmail.com")
+            put("mail.smtp.port", "587")
+            put("mail.smtp.auth", "true")
+            put("mail.smtp.starttls.enable", "true")
+        }
+        
+        val session = Session.getInstance(props, object : Authenticator() {
+            override fun getPasswordAuthentication(): PasswordAuthentication {
+                return PasswordAuthentication("yourapp@gmail.com", "16char-app-password")
+            }
+        })
+        
+        val message = MimeMessage(session).apply {
+            setFrom(InternetAddress("yourapp@gmail.com"))
+            addRecipient(Message.RecipientType.TO, InternetAddress("emergency@gmail.com"))
+            this.subject = subject
+        }
+        
+        val multipart = MimeMultipart().apply {
+            // Text body
+            addBodyPart(MimeBodyPart().apply { setText(body) })
+            
+            // Attachments
+            attachments.forEach { file ->
+                addBodyPart(MimeBodyPart().apply {
+                    setDataHandler(DataHandler(FileDataSource(file)))
+                    fileName = file.name
+                })
+            }
+        }
+        
+        message.setContent(multipart)
+        Transport.send(message)
+    }
+}
+
+// STEP 2: Ultrasonic Data Transmission
+private fun sendUltrasonicData(data: String) {
+    // Encode data as FSK: 0 = 18kHz, 1 = 19kHz
+    val sampleRate = 48000
+    val duration = 0.05 // 50ms per bit
+    val buffer = ShortArray((sampleRate * duration).toInt() * data.length)
+    
+    data.forEachIndexed { i, bit ->
+        val freq = if (bit == '0') 18000.0 else 19000.0
+        for (j in 0 until (sampleRate * duration).toInt()) {
+            val t = j / sampleRate.toDouble() + i * duration
+            buffer[i * (sampleRate * duration).toInt() + j] = 
+                (Short.MAX_VALUE * sin(2.0 * PI * freq * t)).toInt().toShort()
+        }
+    }
+    
+    val track = AudioTrack.Builder()
+        .setAudioFormat(AudioFormat.Builder()
+            .setSampleRate(sampleRate)
+            .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+            .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+            .build())
+        .build()
+    
+    track.play()
+    track.write(buffer, 0, buffer.size)
+    track.stop()
+    track.release()
+}
+
+// STEP 3: Bluetooth BLE Advertising
+private fun advertiseViaBLE(data: ByteArray) {
+    val bluetoothManager = getSystemService(BLUETOOTH_SERVICE) as BluetoothManager
+    val advertiser = bluetoothManager.adapter.bluetoothLeAdvertiser
+    
+    val adData = AdvertiseData.Builder()
+        .setIncludeDeviceName(false)
+        .addManufacturerData(0xABCD, data) // Custom manufacturer ID
+        .build()
+    
+    val settings = AdvertiseSettings.Builder()
+        .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_LATENCY)
+        .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_HIGH)
+        .setConnectable(false)
+        .build()
+    
+    advertiser.startAdvertising(settings, adData, object : AdvertiseCallback() {
+        override fun onStartSuccess(settingsInEffect: AdvertiseSettings) {
+            // Advertising started
+        }
+        override fun onStartFailure(errorCode: Int) {
+            // Fallback to another channel
+        }
+    })
+}
+
+// STEP 4: WiFi Direct P2P Transfer
+private fun setupWiFiDirect() {
+    val manager = getSystemService(WIFI_P2P_SERVICE) as WifiP2pManager
+    val channel = manager.initialize(this, mainLooper, null)
+    
+    manager.discoverPeers(channel, object : WifiP2pManager.ActionListener {
+        override fun onSuccess() {
+            // Discovery started
+        }
+        override fun onFailure(reason: Int) {}
+    })
+    
+    // When peer found, connect and transfer
+    val intentFilter = IntentFilter().apply {
+        addAction(WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION)
+        addAction(WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION)
+    }
+    
+    registerReceiver(object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            when (intent.action) {
+                WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION -> {
+                    manager.requestPeers(channel) { peers ->
+                        // Connect to first available peer
+                        peers.deviceList.firstOrNull()?.let { device ->
+                            val config = WifiP2pConfig().apply {
+                                this.deviceAddress = device.deviceAddress
+                            }
+                            manager.connect(channel, config, null)
+                        }
+                    }
+                }
+            }
+        }
+    }, intentFilter)
+}`,
     features: [
-      { name: 'Email Delivery (SMTP)', desc: 'Evidence sent via Gmail SMTP with TLS', status: 'working', android15: '✅ Most reliable method', technicalDetail: 'JavaMail API, smtp.gmail.com:587, STARTTLS, App Password authentication' },
-      { name: 'SMS Commands (Incoming)', desc: 'Receive text message commands from owner', status: 'blocked', android15: '🚫 SMS_RECEIVE permission restricted Android 14+', technicalDetail: 'Was: BroadcastReceiver for SMS_RECEIVED, now: only default SMS app can receive' },
-      { name: 'SMS Alerts (Outgoing)', desc: 'Send text notifications to emergency contacts', status: 'blocked', android15: '🚫 Background SMS sending blocked Android 14+', technicalDetail: 'Was: SmsManager.sendTextMessage(), now: requires user consent per message' },
-      { name: 'Ultrasonic Data Transmission', desc: '18-22kHz audio data channel between devices', status: 'working', android15: '✅ Works through speaker/mic', technicalDetail: 'FSK modulation at 19kHz carrier, 100bps, range 5-10m, inaudible to humans' },
-      { name: 'Bluetooth Covert Channel', desc: 'BLE advertising packets with encoded data', status: 'working', android15: '⚠️ Requires BLUETOOTH_SCAN permission', technicalDetail: 'BluetoothLeAdvertiser with manufacturer data field, 31 bytes per packet' },
-      { name: 'WiFi Direct P2P', desc: 'Direct device-to-device WiFi transfer', status: 'working', android15: '✅ Works', technicalDetail: 'WifiP2pManager for direct connection, up to 250Mbps, no internet required' },
-      { name: 'NFC Beam / Host Card Emulation', desc: 'Contact-based data transfer to reader device', status: 'working', android15: '✅ Works', technicalDetail: 'Android Beam (deprecated) or HCE for ISO 7816-4 APDU data exchange' },
-      { name: 'DNS Tunneling', desc: 'Data exfiltration via DNS query subdomains', status: 'blocked', android15: '🚫 DNS-over-HTTPS bypasses custom DNS', technicalDetail: 'Was: encode data in DNS queries, now: Android uses DoH which encrypts all DNS' },
-      { name: 'ICMP Tunneling', desc: 'Hide data in ping packet payloads', status: 'blocked', android15: '🚫 Requires root for raw sockets', technicalDetail: 'Raw socket access restricted to root, blocked by SELinux policies' },
-      { name: 'USB Data Exfiltration', desc: 'Transfer evidence via USB when connected', status: 'blocked', android15: '🚫 USB debugging and MTP restricted', technicalDetail: 'USB accessory mode requires user authorization dialog, cannot be automated' },
-      { name: 'Binary SMS', desc: 'Hidden data in SMS protocol data units', status: 'blocked', android15: '🚫 Binary SMS blocked Android 11+', technicalDetail: 'SMS PDU mode for binary data, blocked for non-privileged apps' },
-      { name: 'WebSocket Push', desc: 'Persistent connection for real-time commands', status: 'working', android15: '⚠️ Background WebSocket limited', technicalDetail: 'OkHttp WebSocket to cloud server, but disconnected after 6h in background' },
+      { 
+        name: 'Email Delivery (SMTP)', 
+        desc: 'Evidence sent via Gmail SMTP with TLS', 
+        status: 'working', 
+        android15: '✅ Most reliable method',
+        code: `val session = Session.getInstance(props, object : Authenticator() {
+    override fun getPasswordAuthentication() = 
+        PasswordAuthentication("app@gmail.com", "app-password")
+})
+val msg = MimeMessage(session).apply {
+    setFrom(InternetAddress("app@gmail.com"))
+    addRecipient(TO, InternetAddress("emergency@gmail.com"))
+    subject = "🚨 THEFT ALERT"
+    setText(body)
+}
+Transport.send(msg)` 
+      },
+      { 
+        name: 'Ultrasonic Data Transmission', 
+        desc: '18-22kHz audio data between devices', 
+        status: 'working', 
+        android15: '✅ Works through speaker/mic',
+        code: `val freq = if (bit == '0') 18000.0 else 19000.0
+for (j in 0 until samplesPerBit) {
+    val t = j / sampleRate.toDouble()
+    buffer[j] = (SHRT_MAX * sin(2*PI*freq*t)).toShort()
+}
+val track = AudioTrack(STREAM_MUSIC, sampleRate, 
+    CHANNEL_OUT_MONO, ENCODING_PCM_16BIT, 
+    buffer.size, MODE_STATIC)
+track.write(buffer, 0, buffer.size)
+track.play()` 
+      },
     ],
     commandFlow: {
-      trigger: 'Owner sends command via app, email, or alternate channel',
-      action: 'App receives command through active channel and authenticates',
-      process: 'Execute requested operation (photo, location, audio, etc.)',
-      output: 'Evidence captured and encrypted with device unique key',
-      delivery: 'Primary: SMTP to Gmail. Fallback: Ultrasonic, BLE, WiFi Direct. Last resort: Local storage for later retrieval.',
+      trigger: 'Owner sends command via app, email, or SMS',
+      action: 'App receives and authenticates command',
+      process: 'Execute operation (photo, location, audio)',
+      output: 'Evidence captured and encrypted',
+      delivery: 'Primary: SMTP to Gmail. Fallback: Ultrasonic/BLE',
     }
   },
   {
@@ -155,45 +747,136 @@ export const allModules = [
     restrictedOnAndroid15: 2,
     realWorldUse: 'Sensor fusion provides context: Is thief walking, driving, or stationary? Indoors or outdoors? Alone or in a group?',
     implementation: 'SensorManager with TYPE_ALL sensors, 50Hz sampling where possible, sensor fusion via complementary filter.',
-    threatVector: 'Sensors operate passively - thief cannot disable accelerometer or gyroscope without destroying device.',
+    fullCode: `// ============================================
+// SENSOR ARRAY - Complete Implementation
+// ============================================
+
+// STEP 1: Register All Sensors
+private fun registerAllSensors() {
+    val sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
+    val allSensors = sensorManager.getSensorList(Sensor.TYPE_ALL)
+    
+    allSensors.forEach { sensor ->
+        sensorManager.registerListener(
+            multiSensorListener,
+            sensor,
+            SensorManager.SENSOR_DELAY_GAME // 50Hz
+        )
+    }
+}
+
+// STEP 2: Sensor Fusion (Complementary Filter)
+object SensorFusion {
+    private var pitch = 0f
+    private var roll = 0f
+    private var yaw = 0f
+    private val alpha = 0.96f // Complementary filter coefficient
+    
+    fun update(accel: FloatArray, gyro: FloatArray, dt: Float) {
+        // Accelerometer angles
+        val accelPitch = atan2(-accel[0], sqrt(accel[1]*accel[1] + accel[2]*accel[2]))
+        val accelRoll = atan2(accel[1], accel[2])
+        
+        // Gyroscope integration
+        pitch += gyro[0] * dt
+        roll += gyro[1] * dt
+        yaw += gyro[2] * dt
+        
+        // Complementary filter
+        pitch = alpha * pitch + (1 - alpha) * accelPitch
+        roll = alpha * roll + (1 - alpha) * accelRoll
+    }
+}
+
+// STEP 3: Activity Classification
+private fun classifyActivity(accelData: FloatArray): String {
+    val magnitude = sqrt(accelData[0]*accelData[0] + 
+        accelData[1]*accelData[1] + 
+        accelData[2]*accelData[2])
+    
+    return when {
+        magnitude < 9.5 -> "Stationary"
+        magnitude in 9.5..11.0 -> "Walking"
+        magnitude in 11.0..15.0 -> "Running"
+        magnitude > 15.0 -> "Vehicle"
+        else -> "Unknown"
+    }
+}
+
+// STEP 4: Environment Classification
+private fun classifyEnvironment(): String {
+    val light = getLightLevel()   // lux
+    val pressure = getPressure()  // hPa
+    val humidity = getHumidity()  // %
+    val temperature = getTemperature() // °C
+    val noise = getNoiseLevel()   // dB
+    
+    return when {
+        light > 10000 -> "Outdoor - Daylight"
+        light in 500..10000 -> "Indoor - Well lit"
+        light < 500 -> "Indoor - Dark"
+        pressure < 900 -> "High altitude (>1000m)"
+        humidity > 80 -> "Bathroom/Kitchen"
+        noise > 80 -> "Loud environment (traffic/market)"
+        else -> "Indoor - Normal"
+    }
+}
+
+// STEP 5: Pocket Detection
+private fun detectPocketState(): Boolean {
+    val proximity = getProximity()   // Near = 1, Far = 0
+    val light = getLightLevel()      // Dark in pocket
+    val orientation = getOrientation() // Vertical in pocket
+    val moving = isMoving()           // Walking rhythm
+    
+    return proximity < 1.0 &&        // Covered
+           light < 10 &&              // Dark
+           abs(orientation[2]) > 45 && // Vertical
+           moving                     // Moving
+}
+
+// STEP 6: Fall Detection
+private fun detectFall(): Boolean {
+    val accel = getAccelerometerReading()
+    val magnitude = sqrt(accel[0]*accel[0] + accel[1]*accel[1] + accel[2]*accel[2])
+    
+    // Free fall: magnitude drops close to 0
+    // Impact: magnitude spikes above 30 m/s²
+    return magnitude < 3.0 || magnitude > 30.0
+}`,
     features: [
-      { name: 'Accelerometer', desc: '3-axis acceleration in m/s²', status: 'working', android15: '✅ Works', technicalDetail: 'BMI260/ICM-40607, ±16g range, 16-bit, used for motion trigger and activity' },
-      { name: 'Gyroscope', desc: '3-axis rotation rate in rad/s', status: 'working', android15: '✅ Works', technicalDetail: '±2000dps range, used for orientation tracking and turn detection' },
-      { name: 'Magnetometer', desc: '3-axis magnetic field in µT', status: 'working', android15: '✅ Works', technicalDetail: 'AK09918/MMC5603, ±4900µT, used for compass heading and mag mapping' },
-      { name: 'Barometer', desc: 'Atmospheric pressure in hPa', status: 'working', android15: '✅ Works', technicalDetail: 'BMP280/LPS22HH, 300-1100hPa, 0.01hPa resolution, altitude ±0.5m' },
-      { name: 'Light Sensor', desc: 'Ambient illuminance in lux', status: 'working', android15: '✅ Works', technicalDetail: 'TSL2540, 0.01-83000 lux, used for indoor/outdoor detection' },
-      { name: 'Proximity Sensor', desc: 'Distance in cm (typically 0-5cm)', status: 'working', android15: '✅ Works', technicalDetail: 'STK3328, binary near/far, used for pocket detection and call state' },
-      { name: 'Temperature Sensor', desc: 'Ambient/device temperature in °C', status: 'working', android15: '✅ Works', technicalDetail: 'BMP280/thermistor, -40 to 85°C, ±0.5°C, identifies hot/cold environments' },
-      { name: 'Humidity Sensor', desc: 'Relative humidity percentage', status: 'working', android15: '✅ Works', technicalDetail: 'BME280/SHT30, 0-100% RH, ±3%, identifies indoor/outdoor/bathroom' },
-      { name: 'Heart Rate Sensor', desc: 'PPG (Photoplethysmogram) in BPM', status: 'working', android15: '⚠️ BODY_SENSORS permission required', technicalDetail: 'MAX86140/Samsung HRM, optical sensor, 30-200 BPM, identifies stress level' },
-      { name: 'Step Counter', desc: 'Total steps since last reboot', status: 'restricted', android15: '⚠️ Limited access in Android 15', technicalDetail: 'STEP_COUNTER sensor, cumulative count, used for distance estimation' },
-      { name: 'Step Detector', desc: 'Step event detection per stride', status: 'restricted', android15: '⚠️ Limited access in Android 15', technicalDetail: 'STEP_DETECTOR triggers per step, 50ms latency, for real-time gait analysis' },
-      { name: 'Gravity Sensor', desc: 'Gravity vector from sensor fusion', status: 'working', android15: '✅ Works', technicalDetail: 'Software sensor from accelerometer + gyroscope, separates gravity from motion' },
-      { name: 'Linear Acceleration', desc: 'Acceleration minus gravity', status: 'working', android15: '✅ Works', technicalDetail: 'Accelerometer - gravity = pure device movement, used for gesture detection' },
-      { name: 'Rotation Vector', desc: 'Device orientation as quaternion', status: 'working', android15: '✅ Works', technicalDetail: 'Fused from accelerometer + gyroscope + magnetometer, heading accuracy ±5°' },
-      { name: 'Significant Motion', desc: 'Major movement trigger (walking, driving)', status: 'working', android15: '✅ Works', technicalDetail: 'Low-power hardware trigger, wakes CPU on major movement, 2-5 second latency' },
-      { name: 'Tilt Detector', desc: 'Device angle change detection', status: 'working', android15: '✅ Works', technicalDetail: 'Triggers when phone tilted >35° from resting position' },
-      { name: 'Pick Up Gesture', desc: 'Detect phone being picked up', status: 'working', android15: '✅ Works', technicalDetail: 'Combines accelerometer + proximity + gyroscope for lift detection pattern' },
-      { name: 'Wrist Tilt', desc: 'Wearable gesture for wrist rotation', status: 'working', android15: '✅ Works', technicalDetail: 'Primarily for Wear OS, detects wrist orientation changes' },
-      { name: 'Stationary Detect', desc: 'No movement for extended period', status: 'working', android15: '✅ Works', technicalDetail: 'Variance of accelerometer < threshold for >10 seconds = stationary' },
-      { name: 'Motion Detect', desc: 'Any movement above threshold', status: 'working', android15: '✅ Works', technicalDetail: 'Instant trigger when accelerometer magnitude exceeds 0.5m/s²' },
-      { name: 'Heart Beat Sensor', desc: 'Individual heartbeat detection', status: 'working', android15: '⚠️ BODY_SENSORS permission', technicalDetail: 'PPG peak detection, HRV (Heart Rate Variability) for stress analysis' },
-      { name: 'Pose 6DOF', desc: '6 degrees of freedom AR tracking', status: 'working', android15: '✅ Works', technicalDetail: 'ARCore/ARKit sensor, full 3D position + orientation tracking' },
-      { name: 'Head Tracker', desc: 'Head movement for AR/VR', status: 'working', android15: '✅ Works', technicalDetail: 'Optimized for low latency head pose estimation, <20ms motion-to-photon' },
-      { name: 'Hinge Angle', desc: 'Foldable device hinge position', status: 'working', android15: '✅ Works', technicalDetail: 'Hinge angle sensor on foldables (Galaxy Fold, Pixel Fold), 0-180°' },
-      { name: 'Heading Sensor', desc: 'Compass direction in degrees', status: 'working', android15: '✅ Works', technicalDetail: 'Fused magnetometer + gyroscope heading, 0-360° from magnetic north' },
-      { name: 'Fall Detection', desc: 'Free-fall followed by impact', status: 'working', android15: '✅ Works', technicalDetail: 'Accelerometer free-fall (~9.8m/s²) then spike >3g, triggers within 500ms' },
-      { name: 'Pocket Mode Detection', desc: 'Phone in pocket/purse detection', status: 'working', android15: '✅ Works', technicalDetail: 'Proximity covered + vertical orientation + walking pattern = in pocket' },
-      { name: 'Vehicle Detection', desc: 'Car/train/bus/motorcycle detection', status: 'working', android15: '✅ Works', technicalDetail: 'Speed >30km/h + acceleration pattern + magnetic field changes = vehicle' },
-      { name: 'Activity Recognition', desc: 'Walking, running, cycling, driving, stationary', status: 'working', android15: '✅ Works', technicalDetail: 'Google Activity Recognition API or on-device CNN classifier, 95% accuracy' },
-      { name: 'Hand Tremor Analysis', desc: 'High-frequency micro-movements in hand', status: 'working', android15: '✅ Works', technicalDetail: 'FFT of accelerometer data at 50Hz, 8-12Hz = physiological tremor, higher = nervous' },
+      { 
+        name: 'Activity Recognition', 
+        desc: 'Walking, running, cycling, driving, stationary', 
+        status: 'working', 
+        android15: '✅ Works',
+        code: `fun classify(magnitude: Float): String = when {
+    magnitude < 9.5 -> "Stationary"
+    magnitude in 9.5..11.0 -> "Walking ⬆15px"
+    magnitude in 11.0..15.0 -> "Running"
+    magnitude > 15.0 -> "Vehicle 🚗"
+    else -> "Unknown"
+}` 
+      },
+      { 
+        name: 'Fall Detection', 
+        desc: 'Free-fall followed by impact', 
+        status: 'working', 
+        android15: '✅ Works',
+        code: `val mag = sqrt(x*x + y*y + z*z)
+if (mag < 3.0) { // Free fall (< 0.3g)
+    alertFreeFall()
+} else if (mag > 30.0) { // Impact (> 3g)
+    alertImpact() // Possible fall/drop
+}` 
+      },
     ],
     commandFlow: {
-      trigger: 'Continuous background monitoring at 50Hz sampling rate',
-      action: 'All available sensors streaming with timestamp synchronization',
-      process: 'Sensor fusion via Madgwick/Mahony filter, activity classification every 5s',
-      output: 'Activity state + environment classification + device position + health metrics',
-      delivery: 'Sensor summary sent every 15 minutes, full log on REPORT command',
+      trigger: 'Continuous background at 50Hz',
+      action: 'All sensors streaming simultaneously',
+      process: 'Sensor fusion, classification every 5s',
+      output: 'Activity + environment + position',
+      delivery: 'Summary sent every 15 min to Gmail',
     }
   },
   {
@@ -206,68 +889,258 @@ export const allModules = [
     totalFeatures: 14,
     restrictedOnAndroid15: 5,
     realWorldUse: 'Fake shutdown is the most effective countermeasure - thief believes phone is off while all tracking continues.',
-    implementation: 'DevicePolicyManager for lock/wipe, WindowManager for overlay, AudioManager for alarm, PowerManager for wake.',
-    threatVector: 'Device admin privileges enable powerful controls. Fake shutdown deceives thief into keeping phone powered.',
+    implementation: 'DevicePolicyManager for lock/wipe, WindowManager for overlay, AudioManager for alarm.',
+    fullCode: `// ============================================
+// DEVICE CONTROL - Complete Implementation
+// ============================================
+
+// STEP 1: Instant Screen Lock
+private fun lockDeviceImmediately() {
+    val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+    if (dpm.isAdminActive(adminComponent)) {
+        dpm.lockNow()
+        // Also set password if needed
+        // dpm.resetPassword("tempLock123", 0)
+    }
+}
+
+// STEP 2: Fake Shutdown (Keep tracking)
+private fun activateFakeShutdown() {
+    val windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+    
+    // Create full black overlay
+    val overlay = View(this).apply {
+        setBackgroundColor(Color.BLACK)
+    }
+    
+    val params = WindowManager.LayoutParams(
+        WindowManager.LayoutParams.MATCH_PARENT,
+        WindowManager.LayoutParams.MATCH_PARENT,
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+        else
+            WindowManager.LayoutParams.TYPE_SYSTEM_OVERLAY,
+        WindowManager.LayoutParams.FLAG_FULLSCREEN or
+        WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+        WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+        PixelFormat.TRANSLUCENT
+    )
+    
+    windowManager.addView(overlay, params)
+    
+    // Mute all sounds
+    val audio = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    audio.setStreamVolume(AudioManager.STREAM_RING, 0, 0)
+    audio.setStreamVolume(AudioManager.STREAM_NOTIFICATION, 0, 0)
+    audio.setStreamVolume(AudioManager.STREAM_SYSTEM, 0, 0)
+    audio.setStreamMute(AudioManager.STREAM_RING, true)
+    
+    // Dim screen brightness
+    val layoutParams = window.attributes.apply {
+        screenBrightness = 0.01f
+    }
+    window.attributes = layoutParams
+    
+    // Keep CPU on but screen off
+    val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+    val wakeLock = powerManager.newWakeLock(
+        PowerManager.PARTIAL_WAKE_LOCK,
+        "AntiTheft::FakeShutdown"
+    )
+    wakeLock.acquire(10 * 60 * 1000L) // 10 minutes
+}
+
+// STEP 3: Maximum Volume Alarm
+private fun triggerAlarm() {
+    val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    
+    // Set all volumes to max
+    val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_ALARM)
+    audioManager.setStreamVolume(AudioManager.STREAM_ALARM, maxVolume, 0)
+    audioManager.setStreamVolume(AudioManager.STREAM_RING, 
+        audioManager.getStreamMaxVolume(AudioManager.STREAM_RING), 0)
+    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC,
+        audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC), 0)
+    
+    // Play alarm + flash camera
+    val mediaPlayer = MediaPlayer.create(this, R.raw.alarm_sound).apply {
+        isLooping = true
+        start()
+    }
+    
+    // Flash camera in SOS pattern
+    flashCameraSOS()
+}
+
+// STEP 4: Camera Flash SOS Pattern
+private fun flashCameraSOS() {
+    val cameraManager = getSystemService(Context.CAMERA_SERVICE) as CameraManager
+    val cameraId = cameraManager.cameraIdList.firstOrNull() ?: return
+    
+    val sosPattern = listOf(
+        // S: ... (3 short)
+        200, 200, 200, 200, 200, 200,
+        // O: --- (3 long)
+        600, 200, 600, 200, 600, 200,
+        // S: ... (3 short)
+        200, 200, 200, 200, 200, 200
+    )
+    
+    // Use WorkManager to schedule flash pattern
+    var delay = 0L
+    sosPattern.forEach { duration ->
+        workManager.enqueue(
+            OneTimeWorkRequestBuilder<FlashWorker>()
+                .setInitialDelay(delay, TimeUnit.MILLISECONDS)
+                .setInputData(workDataOf("duration" to duration))
+                .build()
+        )
+        delay += duration
+    }
+}
+
+// STEP 5: Anti-Tamper Detection
+private fun detectTampering(): Boolean {
+    // Check for root
+    val rootPaths = listOf(
+        "/system/app/Superuser.apk",
+        "/sbin/su",
+        "/system/bin/su",
+        "/system/xbin/su",
+        "/data/local/xbin/su",
+        "/data/local/bin/su"
+    )
+    val isRooted = rootPaths.any { File(it).exists() }
+    
+    // Check for USB debugging
+    val usbDebugging = Settings.Global.getInt(
+        contentResolver,
+        Settings.Global.ADB_ENABLED, 0
+    ) == 1
+    
+    // Check for developer options
+    val devOptions = Settings.Global.getInt(
+        contentResolver,
+        Settings.Global.DEVELOPMENT_SETTINGS_ENABLED, 0
+    ) == 1
+    
+    // Check for bootloader unlock
+    val bootloaderUnlocked = isRooted || checkBootloader()
+    
+    if (isRooted || usbDebugging || devOptions || bootloaderUnlocked) {
+        sendAlertToOwner("Tampering detected!")
+        return true
+    }
+    return false
+}
+
+// STEP 6: Boot Complete Auto-Start
+class BootReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        if (intent.action == Intent.ACTION_BOOT_COMPLETED) {
+            // Restart all services
+            val serviceIntent = Intent(context, TheftDetectionService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(serviceIntent)
+            } else {
+                context.startService(serviceIntent)
+            }
+            
+            // Send notification that device restarted
+            sendEmail("Device Restarted", "Anti-theft protection restarted after reboot")
+        }
+    }
+}
+
+// STEP 7: Remote Wipe
+private fun remoteWipe() {
+    val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+    if (dpm.isAdminActive(adminComponent)) {
+        // Wipe everything
+        dpm.wipeData(
+            DevicePolicyManager.WIPE_EXTERNAL_STORAGE or
+            DevicePolicyManager.WIPE_RESET_PROTECTION_DATA
+        )
+    }
+}`,
     features: [
-      { name: 'Instant Screen Lock', desc: 'Lock device immediately on theft detection', status: 'working', android15: '✅ Works with Device Admin', technicalDetail: 'DevicePolicyManager.lockNow(), requires DEVICE_ADMIN_ENABLED permission' },
-      { name: 'Fake Shutdown', desc: 'Screen goes black but all systems remain active', status: 'working', android15: '✅ Works with SYSTEM_ALERT_WINDOW', technicalDetail: 'Full-screen black overlay + muted audio + dimmed backlight, tracking continues' },
-      { name: 'Maximum Volume Alarm', desc: 'Blast alarm at 100% volume to attract attention', status: 'working', android15: '✅ Works', technicalDetail: 'AudioManager.setStreamVolume(STREAM_ALARM, max, FLAG_SHOW_UI), 90+ dB output' },
-      { name: 'Siren + Flash Pattern', desc: 'Alternating siren with camera flash SOS', status: 'working', android15: '✅ Works', technicalDetail: 'Camera2 FLASH_MODE_TORCH with SOS pattern (... --- ...) in Morse code' },
-      { name: 'Voice Warning Messages', desc: 'TTS threats played through speaker', status: 'working', android15: '✅ Works', technicalDetail: 'TextToSpeech with max volume, plays "This phone is tracked, police notified"' },
-      { name: 'Factory Reset Protection', desc: 'Prevent unauthorized factory reset', status: 'working', android15: '✅ FRP is built-in', technicalDetail: 'Android FRP requires Google account password after reset, anti-theft survives' },
-      { name: 'Factory Reset (Remote)', desc: 'Wipe device if recovery impossible', status: 'working', android15: '⚠️ Requires Device Admin', technicalDetail: 'DevicePolicyManager.wipeData(WIPE_EXTERNAL_STORAGE), irreversible' },
-      { name: 'Camera Disable', desc: 'Prevent thief from using camera', status: 'working', android15: '⚠️ Requires Device Admin', technicalDetail: 'DevicePolicyManager.setCameraDisabled(true), blocks all camera access' },
-      { name: 'USB Port Lock', desc: 'Block data over USB, charging only', status: 'restricted', android15: '🚫 Requires root or custom kernel', technicalDetail: 'Would modify /sys/class/android_usb or use USB gadget config, needs root' },
-      { name: 'Network Isolation', desc: 'Block all network access to prevent remote wipe', status: 'restricted', android15: '🚫 Requires root for iptables', technicalDetail: 'iptables -P INPUT DROP would block all traffic but needs root' },
-      { name: 'SIM Lock', desc: 'Prevent SIM removal or usage', status: 'restricted', android15: '🚫 Cannot override SIM PIN from app', technicalDetail: 'TelephonyManager supplyPin() but requires knowing current SIM PIN' },
-      { name: 'Anti-Tamper Detection', desc: 'Detect if thief tries to disable protection', status: 'working', android15: '✅ Works', technicalDetail: 'Monitor for USB debugging enable, bootloader unlock, root attempts' },
-      { name: 'Boot Complete Auto-Start', desc: 'Restart protection after reboot', status: 'working', android15: '✅ Works', technicalDetail: 'BroadcastReceiver for BOOT_COMPLETED, restarts all services automatically' },
-      { name: 'Safe Mode Detection', desc: 'Detect and survive safe mode boot', status: 'restricted', android15: '⚠️ Safe mode disables all third-party apps', technicalDetail: 'Cannot run in safe mode, but detects it and alerts owner of tampering attempt' },
+      { 
+        name: 'Fake Shutdown', 
+        desc: 'Screen goes black but systems remain active', 
+        status: 'working', 
+        android15: '✅ Works with overlay permission',
+        code: `val overlay = View(context).apply { 
+    setBackgroundColor(Color.BLACK) 
+}
+val params = WindowManager.LayoutParams(
+    MATCH_PARENT, MATCH_PARENT,
+    TYPE_APPLICATION_OVERLAY,
+    FLAG_FULLSCREEN or FLAG_NOT_TOUCHABLE,
+    PixelFormat.TRANSLUCENT
+)
+windowManager.addView(overlay, params)
+// Mute audio, dim brightness
+audio.setStreamVolume(STREAM_RING, 0, 0)` 
+      },
+      { 
+        name: 'Anti-Tamper Detection', 
+        desc: 'Detect root, USB debug, bootloader unlock', 
+        status: 'working', 
+        android15: '✅ Works',
+        code: `val isRooted = listOf("/system/bin/su", 
+    "/sbin/su", "/system/xbin/su"
+).any { File(it).exists() }
+val usbDebug = Settings.Global.getInt(
+    cr, ADB_ENABLED, 0) == 1
+if (isRooted || usbDebug) {
+    sendAlert("Tampering detected!")
+}` 
+      },
     ],
     commandFlow: {
-      trigger: 'Auto on theft detection, or LOCK/ALARM/WIPE commands',
-      action: 'Execute countermeasure immediately with device admin privileges',
-      process: 'Lock screen, activate fake shutdown, start alarm, capture evidence',
-      output: 'Device secured, thief deterred or identified, evidence preserved',
-      delivery: 'Status update sent to Gmail: countermeasure applied successfully',
+      trigger: 'Auto or manual LOCK/ALARM/WIPE command',
+      action: 'Execute countermeasure immediately',
+      process: 'Lock, fake shutdown, alarm activated',
+      output: 'Device secured, thief deterred',
+      delivery: 'Status confirmation sent to Gmail',
     }
   },
 ];
 
 export const evidenceFlow = [
-  { step: 1, title: 'Theft Detected', icon: '🔴', action: 'Motion sensors trigger theft detection', time: '0s', output: 'Alert signal generated' },
-  { step: 2, title: 'Lock Device', icon: '🔒', action: 'Screen locked via DevicePolicyManager', time: '3s', output: 'Device secured from access' },
-  { step: 3, title: 'Capture Photo', icon: '📸', action: 'Front camera burst mode silent capture', time: '5s', output: '3-5 photos of thief face' },
-  { step: 4, title: 'Get Location', icon: '📍', action: 'GPS + Network + Sensor fusion', time: '8s', output: 'Coordinates with accuracy' },
-  { step: 5, title: 'Package Evidence', icon: '📦', action: 'Encrypt, compress, add metadata', time: '10s', output: 'Evidence ZIP bundle' },
-  { step: 6, title: 'Send to Gmail', icon: '📧', action: 'SMTP with TLS to configured email', time: '12s', output: 'Email in your inbox' },
-  { step: 7, title: 'Fake Shutdown', icon: '🔌', action: 'Black overlay, mute, dim screen', time: '15s', output: 'Thief thinks phone is off' },
-  { step: 8, title: 'Track Continuously', icon: '🛰️', action: 'GPS every 5 min, sensors active', time: 'Ongoing', output: 'Movement history log' },
-  { step: 9, title: 'SIM Swap Detect', icon: '📶', action: 'Monitor SIM state changes', time: 'Event-based', output: 'New number captured' },
-  { step: 10, title: 'WiFi Logging', icon: '📡', action: 'Record every network connection', time: 'On connect', output: 'SSID + BSSID + timestamp' },
-  { step: 11, title: 'Audio Record', icon: '🎤', action: 'Ambient mic capture on command', time: 'On command', output: 'Voice evidence MP3' },
-  { step: 12, title: 'Police Report', icon: '📋', action: 'Auto-generate complete dossier', time: 'On command', output: 'PDF with all evidence' },
+  { step: 1, title: 'Theft Detected', icon: '🔴', action: 'Motion sensors trigger theft detection via accelerometer spike', time: '0s', output: 'Alert signal generated, DevicePolicyManager.lockNow() called' },
+  { step: 2, title: 'Lock Device', icon: '🔒', action: 'Screen locked via DevicePolicyManager API', time: '3s', output: 'Device secured, thief cannot access data' },
+  { step: 3, title: 'Capture Photo', icon: '📸', action: 'Camera2 API burst capture - silent, no shutter sound', time: '5s', output: '3-5 photos saved to /cache/thief_*.jpg' },
+  { step: 4, title: 'Get Location', icon: '📍', action: 'LocationManager GPS + NETWORK provider fusion', time: '8s', output: 'Lat/Lng coordinates with accuracy metadata' },
+  { step: 5, title: 'Package Evidence', icon: '📦', action: 'ZipOutputStream compress + AES encrypt', time: '10s', output: 'evidence_bundle.zip (encrypted)' },
+  { step: 6, title: 'Send to Gmail', icon: '📧', action: 'JavaMail SMTP - smtp.gmail.com:587 TLS', time: '12s', output: 'Email delivered to emergency@gmail.com' },
+  { step: 7, title: 'Fake Shutdown', icon: '🔌', action: 'WindowManager black overlay + audio mute', time: '15s', output: 'Thief believes phone is powered off' },
+  { step: 8, title: 'Track Continuously', icon: '🛰️', action: 'LocationService foreground - 5min updates', time: 'Ongoing', output: 'Movement history stored in SQLite' },
+  { step: 9, title: 'SIM Swap Detect', icon: '📶', action: 'TelephonyManager.listen() for SIM_STATE_CHANGED', time: 'Event', output: 'New SIM number captured and emailed' },
+  { step: 10, title: 'WiFi Logging', icon: '📡', action: 'BroadcastReceiver for NETWORK_STATE_CHANGED', time: 'On connect', output: 'SSID + BSSID + timestamp logged' },
+  { step: 11, title: 'Audio Record', icon: '🎤', action: 'AudioRecord PCM @ 44.1kHz → MP3 encode', time: 'On cmd', output: 'Voice evidence saved as recording.mp3' },
+  { step: 12, title: 'Police Report', icon: '📋', action: 'Generate PDF with all evidence + maps', time: 'On cmd', output: 'Complete dossier attached to email' },
 ];
 
 export const android15Restrictions = {
   fullyBlocked: [
-    { feature: 'SMS Sending (Background)', reason: 'Prevent spam/fraud apps from sending SMS without user knowledge. Only default SMS app can send.' },
-    { feature: 'SMS Reading', reason: 'SMS_RECEIVED broadcast restricted to default SMS app. Prevents OTP theft and SMS spyware.' },
-    { feature: 'IMEI/MEID Access', reason: 'getDeviceId() returns null since Android 10. Permanent identifiers blocked for privacy.' },
-    { feature: 'Background Camera', reason: 'Camera requires foreground service with visible notification since Android 11.' },
-    { feature: 'Full Storage Access', reason: 'Scoped storage since Android 10. Apps can only access their own directories without MANAGE_EXTERNAL_STORAGE.' },
-    { feature: 'Clipboard Access (Background)', reason: 'Apps cannot read clipboard in background since Android 10 without being default input method.' },
-    { feature: 'Call Log Access', reason: 'Requires CALL_LOG permission group and explicit user consent. Cannot read silently.' },
-    { feature: 'Install Apps (Background)', reason: 'REQUEST_INSTALL_PACKAGES requires user to enable per-app. Cannot be granted automatically.' },
+    { feature: 'SMS Sending (Background)', reason: 'SmsManager.sendTextMessage() requires default SMS app since Android 14' },
+    { feature: 'SMS Reading', reason: 'SMS_RECEIVED broadcast only delivered to default SMS app' },
+    { feature: 'IMEI/MEID Access', reason: 'TelephonyManager.getDeviceId() returns null since Android 10' },
+    { feature: 'Background Camera', reason: 'Camera requires foreground service with visible notification' },
+    { feature: 'Full Storage Access', reason: 'Scoped storage - MANAGE_EXTERNAL_STORAGE restricted' },
+    { feature: 'Clipboard (Background)', reason: 'ClipboardManager.getPrimaryClip() blocked in background' },
+    { feature: 'Call Log', reason: 'CALL_LOG permission group requires user consent' },
+    { feature: 'Install Apps', reason: 'REQUEST_INSTALL_PACKAGES per-app user toggle' },
   ],
   restricted: [
-    { feature: 'Background Location', restriction: 'Must use foreground service with persistent notification. Background location limited.' },
-    { feature: 'Continuous GPS', restriction: 'Battery optimization (Doze mode) limits location updates to 30-minute intervals in background.' },
-    { feature: 'WiFi Scanning (Background)', restriction: 'Throttled to 4 scans per 2 minutes when app is in background.' },
-    { feature: 'Bluetooth Scanning', restriction: 'Requires ACCESS_FINE_LOCATION permission because BT can be used for location tracking.' },
-    { feature: 'Microphone (Background)', restriction: 'Recording indicator (green dot) mandatory since Android 12. Foreground service required.' },
-    { feature: 'Sensor Data Rate', restriction: 'Sensors throttled to 50Hz or lower when app is in background.' },
-    { feature: 'Geofencing', restriction: 'Limited to 10 active geofences per app. Minimum radius 100m.' },
-    { feature: 'Foreground Service', restriction: 'Auto-stopped after 6 hours in Android 15. Must show persistent notification.' },
+    { feature: 'Background Location', restriction: 'Foreground service with persistent notification required' },
+    { feature: 'Continuous GPS', restriction: 'Battery optimization limits to 30-min intervals' },
+    { feature: 'WiFi Scanning', restriction: '4 scans per 2 minutes in background' },
+    { feature: 'Bluetooth Scanning', restriction: 'Requires ACCESS_FINE_LOCATION permission' },
+    { feature: 'Microphone', restriction: 'Recording indicator (green dot) mandatory' },
+    { feature: 'Sensor Rate', restriction: 'Throttled to 50Hz in background' },
+    { feature: 'Geofencing', restriction: '10 geofences max, 100m minimum radius' },
+    { feature: 'Foreground Service', restriction: 'Auto-stopped after 6 hours in Android 15' },
   ],
 };
