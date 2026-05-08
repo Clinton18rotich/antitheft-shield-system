@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
-import { Shield, Play, Package, Zap, Eye, AlertTriangle, Menu, X, Sun, Moon, Lightbulb, ArrowLeftRight, Download } from 'lucide-react';
+import { Shield, Play, Package, Zap, Eye, AlertTriangle, Menu, X, Sun, Moon, Lightbulb, ArrowLeftRight, Download, EyeOff, Smartphone } from 'lucide-react';
 import { useTheme } from './context/ThemeContext';
 import Dashboard from './pages/Dashboard';
 import TheftSimulator from './pages/TheftSimulator';
@@ -11,6 +11,8 @@ import Android15 from './pages/Android15';
 import Android15Bypass from './pages/Android15Bypass';
 import ReverseConnection from './pages/ReverseConnection';
 import RemoteInstall from './pages/RemoteInstall';
+import StealthMode from './pages/StealthMode';
+import SecurityLab from './pages/SecurityLab';
 import './App.css';
 
 function App() {
@@ -27,6 +29,8 @@ function App() {
     { path: '/flow', icon: Eye, label: 'Evidence Flow', color: '#34d399' },
     { path: '/reverse', icon: ArrowLeftRight, label: 'Reverse Connect', color: '#22d3ee' },
     { path: '/install', icon: Download, label: 'Remote Install', color: '#a78bfa' },
+    { path: '/stealth', icon: EyeOff, label: 'Stealth Mode', color: '#8b5cf6' },
+    { path: '/security', icon: Smartphone, label: 'Security Lab', color: '#34d399' },
     { path: '/bypass', icon: Lightbulb, label: 'Bypass', color: '#fbbf24' },
     { path: '/android15', icon: AlertTriangle, label: 'Restrictions', color: '#f87171' },
   ];
@@ -37,16 +41,12 @@ function App() {
         {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
       </button>
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
-        <div className="sidebar-header">
-          <Shield size={32} className="logo-icon" />
-          <h1 className="logo-text">AntiTheft</h1>
-        </div>
+        <div className="sidebar-header"><Shield size={32} className="logo-icon" /><h1 className="logo-text">AntiTheft</h1></div>
         <nav className="sidebar-nav">
           {navItems.map((item) => (
             <button key={item.path} className={`nav-item ${location.pathname === item.path ? 'active' : ''}`}
               onClick={() => { navigate(item.path); setSidebarOpen(false); }}>
-              <item.icon size={20} color={item.color} />
-              <span>{item.label}</span>
+              <item.icon size={20} color={item.color} /><span>{item.label}</span>
             </button>
           ))}
         </nav>
@@ -67,6 +67,8 @@ function App() {
           <Route path="/flow" element={<EvidenceFlow />} />
           <Route path="/reverse" element={<ReverseConnection />} />
           <Route path="/install" element={<RemoteInstall />} />
+          <Route path="/stealth" element={<StealthMode />} />
+          <Route path="/security" element={<SecurityLab />} />
           <Route path="/bypass" element={<Android15Bypass />} />
           <Route path="/android15" element={<Android15 />} />
         </Routes>
